@@ -1,0 +1,102 @@
+{
+  "name": "claudevisual",
+  "displayName": "ClaudeVisual",
+  "description": "Real-time visibility and config tuning for Claude Code sessions inside VS Code",
+  "version": "0.0.1",
+  "publisher": "dinhphu",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vietphu/claudevisual.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vietphu/claudevisual/issues"
+  },
+  "homepage": "https://github.com/vietphu/claudevisual#readme",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "claudevisual.installHooks",
+        "title": "ClaudeVisual: Install Hooks"
+      },
+      {
+        "command": "claudevisual.uninstallHooks",
+        "title": "ClaudeVisual: Uninstall Hooks"
+      },
+      {
+        "command": "claudevisual.wrapStatusLine",
+        "title": "ClaudeVisual: Wrap StatusLine"
+      },
+      {
+        "command": "claudevisual.previewStatusLineWrap",
+        "title": "ClaudeVisual: Preview StatusLine Wrap"
+      },
+      {
+        "command": "claudevisual.restoreOriginalStatusLine",
+        "title": "ClaudeVisual: Restore Original StatusLine"
+      },
+      {
+        "command": "claudevisual.openDashboard",
+        "title": "ClaudeVisual: Open Dashboard"
+      }
+    ],
+    "configuration": {
+      "title": "ClaudeVisual",
+      "properties": {
+        "claudevisual.debug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Log verbose ClaudeVisual diagnostics to the ClaudeVisual output channel."
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claudevisual",
+          "title": "ClaudeVisual",
+          "icon": "resources/activity-bar-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "claudevisual": [
+        {
+          "id": "claudevisual.sessions",
+          "name": "Sessions"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc --noEmit -p . && node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit -p .",
+    "clean": "rm -rf dist",
+    "compile:production": "npm run clean && tsc --noEmit -p . && node esbuild.js --production",
+    "vscode:prepublish": "npm run compile:production",
+    "package": "vsce package",
+    "reinstall": "bash scripts/reinstall-extension.sh",
+    "test": "mocha --require ts-node/register test/suite/**/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.14.0",
+    "@types/vscode": "^1.90.0",
+    "@vscode/vsce": "^3.9.2",
+    "esbuild": "^0.23.0",
+    "mocha": "^10.4.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.0"
+  }
+}

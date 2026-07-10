@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+out/
+
+# Packaged extension artifacts
+*.vsix
+
+# Test run artifacts
+.vscode-test/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Local Claude Code project config (personal, machine-specific paths)
+.claude/
+
+# OS
+.DS_Store
+
+# Env
+.env
+.env.local

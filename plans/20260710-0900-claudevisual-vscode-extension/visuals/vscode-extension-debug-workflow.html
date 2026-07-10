@@ -1,0 +1,535 @@
+<meta charset="UTF-8">
+<title>Chạy &amp; Debug ClaudeVisual trong VS Code</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fira+Code:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-mono: 'Fira Code', 'SF Mono', monospace;
+  --bg: #f0f4f8;
+  --surface: #ffffff;
+  --surface2: #e8eef4;
+  --surface-elevated: #ffffff;
+  --border: rgba(30, 60, 100, 0.10);
+  --border-bright: rgba(30, 60, 100, 0.20);
+  --text: #1a2a3a;
+  --text-dim: #5a7090;
+  --text-bright: #0d1b2a;
+  --accent: #1a5fa8;
+  --accent-dim: rgba(26, 95, 168, 0.08);
+
+  --green: #2f7d4f;
+  --green-dim: rgba(47, 125, 79, 0.08);
+  --red: #b33636;
+  --red-dim: rgba(179, 54, 54, 0.08);
+  --amber: #b4650f;
+  --amber-dim: rgba(180, 101, 15, 0.08);
+  --sage: #5a8a2f;
+  --sage-dim: rgba(90, 138, 47, 0.08);
+  --teal: #0f766e;
+  --teal-dim: rgba(15, 118, 110, 0.08);
+  --plum: #8a2f5a;
+  --plum-dim: rgba(138, 47, 90, 0.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1421;
+    --surface: #111d2e;
+    --surface2: #16233a;
+    --surface-elevated: #162438;
+    --border: rgba(100, 160, 220, 0.12);
+    --border-bright: rgba(100, 160, 220, 0.24);
+    --text: #c8d8e8;
+    --text-dim: #7d93ad;
+    --text-bright: #eaf2fb;
+    --accent: #5b9fe6;
+    --accent-dim: rgba(91, 159, 230, 0.12);
+
+    --green: #7fc99a;
+    --green-dim: rgba(127, 201, 154, 0.1);
+    --red: #e08a8a;
+    --red-dim: rgba(224, 138, 138, 0.1);
+    --amber: #e0a94f;
+    --amber-dim: rgba(224, 169, 79, 0.1);
+    --sage: #a3d16f;
+    --sage-dim: rgba(163, 209, 111, 0.1);
+    --teal: #5eead4;
+    --teal-dim: rgba(94, 234, 212, 0.1);
+    --plum: #e08fc0;
+    --plum-dim: rgba(224, 143, 192, 0.1);
+  }
+}
+[data-theme="dark"] {
+  --bg: #0d1421;
+  --surface: #111d2e;
+  --surface2: #16233a;
+  --surface-elevated: #162438;
+  --border: rgba(100, 160, 220, 0.12);
+  --border-bright: rgba(100, 160, 220, 0.24);
+  --text: #c8d8e8;
+  --text-dim: #7d93ad;
+  --text-bright: #eaf2fb;
+  --accent: #5b9fe6;
+  --accent-dim: rgba(91, 159, 230, 0.12);
+  --green: #7fc99a; --green-dim: rgba(127, 201, 154, 0.1);
+  --red: #e08a8a; --red-dim: rgba(224, 138, 138, 0.1);
+  --amber: #e0a94f; --amber-dim: rgba(224, 169, 79, 0.1);
+  --sage: #a3d16f; --sage-dim: rgba(163, 209, 111, 0.1);
+  --teal: #5eead4; --teal-dim: rgba(94, 234, 212, 0.1);
+  --plum: #e08fc0; --plum-dim: rgba(224, 143, 192, 0.1);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  padding: 40px;
+  font-family: var(--font-body);
+  background-color: var(--bg);
+  background-image: radial-gradient(circle, var(--border) 1px, transparent 1px);
+  background-size: 26px 26px;
+  color: var(--text);
+  overflow-wrap: break-word;
+}
+.grid > *, .flex > * { min-width: 0; }
+
+.theme-toggle {
+  position: fixed; top: 16px; right: 16px; z-index: 300;
+  width: 36px; height: 36px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text-dim);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 16px; transition: background 0.15s, color 0.15s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.theme-toggle:hover { background: var(--surface2); color: var(--text); }
+
+.wrap { max-width: 1320px; margin: 0 auto; display: grid; grid-template-columns: 180px 1fr; gap: 0 40px; }
+.main { min-width: 0; }
+
+.toc {
+  position: sticky; top: 24px; align-self: start; padding: 14px 0;
+  grid-row: 1 / -1; max-height: calc(100dvh - 48px); overflow-y: auto;
+}
+.toc-title {
+  font-family: var(--font-mono); font-size: 9px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 2px; color: var(--text-dim); padding: 0 0 10px; margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.toc a {
+  display: block; font-size: 11px; color: var(--text-dim); text-decoration: none;
+  padding: 4px 8px; border-radius: 5px; border-left: 2px solid transparent;
+  transition: all 0.15s; line-height: 1.4; margin-bottom: 1px;
+}
+.toc a:hover { color: var(--text); background: var(--surface2); }
+.toc a.active { color: var(--text); border-left-color: var(--accent); }
+
+h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.5px; margin: 0 0 6px; color: var(--text-bright); }
+.subtitle { font-size: 16px; color: var(--text-dim); margin: 0 0 36px; max-width: 68ch; line-height: 1.6; }
+
+.sec-head {
+  font-family: var(--font-mono); font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--accent); padding-bottom: 8px; margin: 48px 0 20px;
+  border-bottom: 2px solid var(--border-bright); scroll-margin-top: 20px;
+}
+.sec-head:first-of-type { margin-top: 0; }
+
+.ve-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px 22px; position: relative;
+}
+.ve-card--elevated { background: var(--surface-elevated); box-shadow: 0 2px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04); }
+.ve-card--recessed { background: color-mix(in srgb, var(--bg) 70%, var(--surface) 30%); box-shadow: inset 0 1px 3px rgba(0,0,0,0.06); }
+.ve-card--hero { background: color-mix(in srgb, var(--surface) 92%, var(--accent) 8%); box-shadow: 0 4px 20px rgba(0,0,0,0.08); border-color: color-mix(in srgb, var(--border) 50%, var(--accent) 50%); }
+.ve-card__label {
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 1.5px; color: var(--accent); margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+}
+.ve-card__label::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.two-col > * { min-width: 0; }
+@media (max-width: 900px) { .two-col { grid-template-columns: 1fr; } }
+
+.window-card { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+.window-card__bar {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+}
+.window-card__bar--source { background: var(--teal-dim); color: var(--teal); border-bottom: 2px solid var(--teal); }
+.window-card__bar--host { background: var(--accent-dim); color: var(--accent); border-bottom: 2px solid var(--accent); }
+.window-card__body { background: var(--surface); padding: 18px; font-size: 14.5px; line-height: 1.7; }
+.window-card__body ul { margin: 0; padding-left: 1.3em; }
+.window-card__body li { margin-bottom: 6px; }
+.window-card__statusbar {
+  margin-top: 14px; display: flex; align-items: center; gap: 10px;
+  background: var(--surface2); border-radius: 6px; padding: 8px 12px;
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--text);
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+
+.steps { counter-reset: step; list-style: none; margin: 0; padding: 0; }
+.steps li {
+  position: relative; padding: 4px 0 20px 44px; border-left: 2px solid var(--border-bright);
+  margin-left: 15px;
+}
+.steps li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.steps li::before {
+  counter-increment: step; content: counter(step);
+  position: absolute; left: -15px; top: 0; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--accent); color: #fff; font-family: var(--font-mono); font-weight: 700; font-size: 13px;
+  display: flex; align-items: center; justify-content: center;
+}
+.steps li strong { color: var(--text-bright); font-size: 15.5px; }
+.steps li p { margin: 4px 0 0; color: var(--text-dim); font-size: 14px; line-height: 1.6; }
+.steps code { font-family: var(--font-mono); font-size: 12.5px; background: var(--accent-dim); color: var(--accent); padding: 1px 6px; border-radius: 4px; }
+
+.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.data-table th {
+  background: var(--surface-elevated); font-family: var(--font-mono); font-size: 11.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); text-align: left;
+  padding: 12px 16px; border-bottom: 2px solid var(--border-bright);
+}
+.data-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table code { font-family: var(--font-mono); font-size: 12px; background: var(--accent-dim); color: var(--accent); padding: 1px 6px; border-radius: 4px; }
+
+.status { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; padding: 3px 10px; border-radius: 6px; white-space: nowrap; }
+.status--fixed { background: var(--green-dim); color: var(--green); }
+.status--check { background: var(--amber-dim); color: var(--amber); }
+
+.callout { padding: 16px 20px; border-radius: 8px; border-left: 4px solid var(--callout-border); background: var(--callout-bg); margin: 20px 0; }
+.callout--info { --callout-border: var(--accent); --callout-bg: var(--accent-dim); }
+.callout--success { --callout-border: var(--green); --callout-bg: var(--green-dim); }
+.callout__title { font-weight: 700; margin-bottom: 6px; color: var(--callout-border); }
+
+.mermaid-wrap {
+  position: relative; background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  padding: 28px 20px; overflow: auto; display: flex; justify-content: center; align-items: center; min-height: 300px;
+}
+.zoom-controls { position: absolute; top: 8px; right: 8px; display: flex; gap: 2px; z-index: 10; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 2px; }
+.zoom-controls button { width: 26px; height: 26px; border: none; background: transparent; color: var(--text-dim); font-family: var(--font-mono); font-size: 13px; cursor: pointer; border-radius: 4px; }
+.zoom-controls button:hover { background: var(--border); color: var(--text); }
+.mermaid-wrap { cursor: grab; } .mermaid-wrap.is-panning { cursor: grabbing; user-select: none; }
+.diagram-shell__hint { font-family: var(--font-mono); font-size: 11px; color: var(--text-dim); margin-bottom: 8px; opacity: 0.75; }
+.mermaid-viewport { position: relative; overflow: hidden; width: 100%; height: 100%; min-height: 260px; }
+.mermaid-canvas { position: absolute; top: 0; left: 0; }
+.zoom-label { font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); padding: 0 6px; white-space: nowrap; }
+.mermaid .nodeLabel { color: var(--text) !important; font-family: var(--font-body) !important; }
+.mermaid .edgeLabel { color: var(--text-dim) !important; background-color: var(--bg) !important; font-family: var(--font-mono) !important; font-size: 12.5px !important; }
+.mermaid .edgeLabel rect { fill: var(--bg) !important; }
+
+@media (max-width: 1000px) {
+  .wrap { grid-template-columns: 1fr; padding-top: 0; }
+  body { padding: 16px; }
+  .toc {
+    position: sticky; top: 0; z-index: 200; max-height: none; display: flex; gap: 4px; align-items: center;
+    overflow-x: auto; -webkit-overflow-scrolling: touch; background: var(--bg); border-bottom: 1px solid var(--border);
+    padding: 10px 0; margin: 0 -16px; padding-left: 16px; padding-right: 16px; grid-row: auto;
+  }
+  .toc::-webkit-scrollbar { display: none; }
+  .toc-title { display: none; }
+  .toc a { white-space: nowrap; flex-shrink: 0; border-left: none; border-bottom: 2px solid transparent; border-radius: 4px 4px 0 0; padding: 6px 10px; font-size: 10px; }
+  .toc a.active { border-left: none; border-bottom-color: var(--accent); background: var(--surface); }
+  .main { padding-top: 20px; }
+  .sec-head { scroll-margin-top: 52px; }
+}
+</style>
+
+<button class="theme-toggle" id="themeToggle" title="Toggle theme" aria-label="Toggle light/dark theme"></button>
+
+<div class="wrap">
+  <nav class="toc" id="toc">
+    <div class="toc-title">Mục lục</div>
+    <a href="#s1">1. Vấn đề</a>
+    <a href="#s2">2. Bức tranh tổng thể</a>
+    <a href="#s3">3. F5 làm gì</a>
+    <a href="#s4">4. Hai cửa sổ khác nhau</a>
+    <a href="#s5">5. Xem log ở đâu</a>
+    <a href="#s6">6. Đã sửa gì hôm nay</a>
+  </nav>
+
+  <div class="main">
+    <h1>Chạy &amp; Debug ClaudeVisual trong VS Code</h1>
+    <p class="subtitle">Giải thích mô hình "Extension Development Host" — vì sao nhấn F5 không tự động là "chạy extension", và cửa sổ nào mới là nơi cần nhìn.</p>
+
+    <div id="s1" class="sec-head">1 — Vấn đề đang gặp</div>
+    <div class="ve-card ve-card--hero">
+      <div class="ve-card__label">Bối cảnh</div>
+      <p style="margin:0; font-size:15px; line-height:1.7;">
+        VS Code extension <strong>không chạy trực tiếp</strong> trong cửa sổ bạn đang gõ code.
+        Nó cần một <strong>cửa sổ VS Code thứ hai</strong>, gọi là <em>Extension Development Host</em>,
+        đóng vai trò "phòng thí nghiệm" để thử extension mà không ảnh hưởng cửa sổ chính.
+        Nhấn <code style="font-family:var(--font-mono); background:var(--accent-dim); color:var(--accent); padding:1px 6px; border-radius:4px;">F5</code>
+        chỉ là lệnh "mở phòng thí nghiệm đó lên" — nếu thiếu cấu hình hoặc phòng thí nghiệm mở trống, bạn sẽ không thấy gì cả.
+      </p>
+    </div>
+
+    <div id="s2" class="sec-head">2 — Bức tranh tổng thể</div>
+    <div class="diagram-shell">
+      <p class="diagram-shell__hint">Ctrl/Cmd + cuộn để zoom · kéo để di chuyển · double-click để fit</p>
+      <div class="mermaid-wrap">
+        <div class="zoom-controls">
+          <button type="button" data-action="zoom-in" title="Zoom in">+</button>
+          <button type="button" data-action="zoom-out" title="Zoom out">&minus;</button>
+          <button type="button" data-action="zoom-fit" title="Smart fit">&#8634;</button>
+          <button type="button" data-action="zoom-one" title="1:1">1:1</button>
+          <span class="zoom-label">Đang tải...</span>
+        </div>
+        <div class="mermaid-viewport">
+          <div class="mermaid mermaid-canvas"></div>
+        </div>
+      </div>
+      <script type="text/plain" class="diagram-source">
+graph TD
+  A["Cửa sổ gốc<br/>(source code, nơi bạn đang gõ)"] -->|"1. Nhấn F5"| B["VS Code Debugger"]
+  B -->|"2. Chạy task build<br/>tsc + esbuild"| C["dist/extension.js"]
+  B -->|"3. Khởi chạy tiến trình mới"| D["Extension Development Host<br/>(cửa sổ thứ hai, tự mở ra)"]
+  D -->|"4. Load extension.js,<br/>gọi activate()"| E["ClaudeVisual đang chạy"]
+  E -->|"5. Tail JSONL, render"| F["Status Bar<br/>(góc dưới trái, TRONG cửa sổ Dev Host)"]
+  classDef src fill:#0f766e22,stroke:#0f766e,stroke-width:2px
+  classDef host fill:#1a5fa822,stroke:#1a5fa8,stroke-width:2px
+  class A,B,C src
+  class D,E,F host
+      </script>
+    </div>
+
+    <div id="s3" class="sec-head">3 — F5 thực sự làm gì (theo thứ tự)</div>
+    <ol class="steps">
+      <li><strong>VS Code đọc <code>.vscode/launch.json</code></strong><p>File này mô tả "chạy cái gì". Nếu chưa có file này, F5 không biết phải làm gì — đây là lý do lần đầu bạn nhấn F5 "không thấy gì" (tôi vừa tạo file này).</p></li>
+      <li><strong>Chạy task build trước (<code>preLaunchTask</code>)</strong><p>Task <code>npm: compile</code> chạy <code>tsc</code> (kiểm tra kiểu dữ liệu) rồi <code>esbuild</code> (đóng gói code thành <code>dist/extension.js</code>). Nếu bước này lỗi, cửa sổ mới sẽ không mở.</p></li>
+      <li><strong>Mở cửa sổ "Extension Development Host"</strong><p>Đây là một tiến trình VS Code hoàn toàn mới, riêng biệt — không phải cửa sổ bạn đang thao tác. Tiêu đề cửa sổ này thường có chữ <code>[Extension Development Host]</code>.</p></li>
+      <li><strong>Extension host nạp <code>dist/extension.js</code> và gọi <code>activate()</code></strong><p>Đây là lúc code trong <code>src/extension.ts</code> thực sự chạy — nhưng chỉ trong cửa sổ mới này.</p></li>
+      <li><strong>Extension bắt đầu tail JSONL và vẽ status bar</strong><p>Nếu đúng folder ClaudeVisual đang mở trong cửa sổ mới, status bar góc dưới trái sẽ hiện model/token đang dùng.</p></li>
+    </ol>
+
+    <div id="s4" class="sec-head">4 — Hai cửa sổ, hai vai trò khác nhau</div>
+    <div class="two-col">
+      <div class="window-card">
+        <div class="window-card__bar window-card__bar--source">CỬA SỔ GỐC — nơi bạn gõ lệnh này</div>
+        <div class="window-card__body">
+          <ul>
+            <li>Chứa source code (<code>src/*.ts</code>)</li>
+            <li>Nơi bạn nhấn <code>F5</code> để khởi động</li>
+            <li>Có thanh Debug (nút Continue/Step/Stop) khi đang debug</li>
+            <li>Extension <strong>KHÔNG chạy ở đây</strong> — đây chỉ là nơi điều khiển</li>
+          </ul>
+        </div>
+      </div>
+      <div class="window-card">
+        <div class="window-card__bar window-card__bar--host">EXTENSION DEVELOPMENT HOST — cửa sổ tự mở ra</div>
+        <div class="window-card__body">
+          <ul>
+            <li>Một cửa sổ VS Code <strong>hoàn toàn khác</strong>, tự bật lên sau F5</li>
+            <li>Extension <code>ClaudeVisual</code> thực sự chạy ở đây</li>
+            <li>Phải mở đúng folder <code>ClaudeVisual</code> ở đây thì mới thấy gì</li>
+            <li>Status bar cần xem nằm ở <strong>góc dưới trái của cửa sổ này</strong></li>
+          </ul>
+          <div class="window-card__statusbar"><span class="dot"></span> claude-sonnet-5 · ~12% · 45.2k tok</div>
+        </div>
+      </div>
+    </div>
+    <div class="callout callout--info">
+      <div class="callout__title">Dễ nhầm nhất</div>
+      Sau khi nhấn F5, bạn vẫn đang nhìn vào <strong>cửa sổ gốc</strong> theo phản xạ — nhưng status bar cần xem nằm ở <strong>cửa sổ thứ hai</strong> vừa bật lên. Hãy tìm cửa sổ có tiêu đề chứa <code>[Extension Development Host]</code>.
+    </div>
+
+    <div id="s5" class="sec-head">5 — Muốn xem log/lỗi thì nhìn ở đâu</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Muốn xem gì</th><th>Mở ở đâu</th><th>Trong cửa sổ nào</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Lỗi khi <em>khởi động</em> extension (activate() ném exception)</td>
+            <td><code>Cmd+Shift+Y</code> → tab "Debug Console"</td>
+            <td>Cửa sổ gốc</td>
+          </tr>
+          <tr>
+            <td>Log riêng của ClaudeVisual (model, token, trạng thái session)</td>
+            <td><code>Cmd+Shift+U</code> → dropdown bên phải, chọn "ClaudeVisual"</td>
+            <td>Cửa sổ Extension Development Host</td>
+          </tr>
+          <tr>
+            <td>Status bar hiện gì</td>
+            <td>Nhìn trực tiếp góc dưới trái</td>
+            <td>Cửa sổ Extension Development Host</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="callout callout--success">
+      <div class="callout__title">Mẹo debug nhanh không cần hỏi tôi</div>
+      Nếu status bar không hiện gì đúng như mong đợi: mở Output → ClaudeVisual (trong cửa sổ Dev Host) trước tiên. Dòng log đầu tiên luôn cho biết extension có tìm thấy workspace folder hay không.
+    </div>
+
+    <div id="s6" class="sec-head">6 — Những gì vừa được sửa hôm nay</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th>Vấn đề</th><th>Nguyên nhân</th><th>Trạng thái</th></tr></thead>
+        <tbody>
+          <tr><td>F5 không phản ứng gì</td><td>Thiếu <code>.vscode/launch.json</code></td><td><span class="status status--fixed">Đã tạo file</span></td></tr>
+          <tr><td>Cửa sổ Dev Host mở ra nhưng trống</td><td><code>launch.json</code> chưa truyền sẵn folder để mở</td><td><span class="status status--fixed">Đã thêm folder vào args</span></td></tr>
+          <tr><td>Log ghi "no workspace folder open"</td><td>Cửa sổ Dev Host khởi động không có folder nào mở sẵn</td><td><span class="status status--fixed">Đã xác nhận qua log thật</span></td></tr>
+          <tr><td>Nếu mở folder <em>sau khi</em> cửa sổ đã chạy</td><td>Extension trước đây chỉ kiểm tra 1 lần lúc khởi động</td><td><span class="status status--fixed">Extension giờ lắng nghe sự kiện đổi workspace folder</span></td></tr>
+          <tr><td>Xác nhận status bar hiện đúng giá trị thật</td><td>Cần chạy lại F5 sau các fix trên</td><td><span class="status status--check">Đang chờ bạn thử lại</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    look: 'classic',
+    themeVariables: {
+      primaryColor: isDark ? '#16233a' : '#e8eef4',
+      primaryBorderColor: isDark ? '#5b9fe6' : '#1a5fa8',
+      primaryTextColor: isDark ? '#eaf2fb' : '#0d1b2a',
+      lineColor: isDark ? '#7d93ad' : '#5a7090',
+      fontSize: '16px',
+      fontFamily: 'DM Sans, system-ui, sans-serif',
+    }
+  });
+
+  const config = { minZoom: 0.4, maxZoom: 3, fitPadding: 24 };
+  const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+  let activeDrag = null;
+  addEventListener('mousemove', (e) => activeDrag?.onMove(e));
+  addEventListener('mouseup', () => { activeDrag?.onEnd(); activeDrag = null; });
+
+  async function initDiagram(shell) {
+    const wrap = shell.querySelector('.mermaid-wrap');
+    const viewport = shell.querySelector('.mermaid-viewport');
+    const canvas = shell.querySelector('.mermaid-canvas');
+    const source = shell.querySelector('.diagram-source');
+    const label = shell.querySelector('.zoom-label');
+    if (!wrap || !viewport || !canvas || !source || !label) return;
+
+    let zoom = 1, panX = 0, panY = 0, svgEl = null, baseW = 0, baseH = 0;
+
+    function apply() {
+      if (!svgEl) return;
+      svgEl.style.width = (baseW * zoom) + 'px';
+      svgEl.style.height = (baseH * zoom) + 'px';
+      canvas.style.transform = `translate(${panX}px, ${panY}px)`;
+      label.textContent = Math.round(zoom * 100) + '%';
+    }
+    function fit() {
+      if (!svgEl) return;
+      const vw = viewport.clientWidth - config.fitPadding;
+      const vh = viewport.clientHeight - config.fitPadding;
+      zoom = clamp(Math.min(vw / baseW, vh / baseH, 1.4), config.minZoom, config.maxZoom);
+      panX = (viewport.clientWidth - baseW * zoom) / 2;
+      panY = (viewport.clientHeight - baseH * zoom) / 2;
+      apply();
+    }
+    try {
+      const code = source.textContent.trim();
+      const id = 'diagram-' + Math.random().toString(36).slice(2, 10);
+      const { svg } = await mermaid.render(id, code);
+      canvas.innerHTML = svg;
+      svgEl = canvas.querySelector('svg');
+      const box = svgEl.viewBox.baseVal;
+      baseW = box && box.width ? box.width : svgEl.width.baseVal.value;
+      baseH = box && box.height ? box.height : svgEl.height.baseVal.value;
+      svgEl.removeAttribute('width'); svgEl.removeAttribute('height');
+      requestAnimationFrame(fit);
+    } catch (err) {
+      label.textContent = 'Lỗi render';
+      console.error(err);
+      return;
+    }
+
+    shell.querySelector('[data-action="zoom-in"]').addEventListener('click', () => { zoom = clamp(zoom * 1.2, config.minZoom, config.maxZoom); apply(); });
+    shell.querySelector('[data-action="zoom-out"]').addEventListener('click', () => { zoom = clamp(zoom / 1.2, config.minZoom, config.maxZoom); apply(); });
+    shell.querySelector('[data-action="zoom-fit"]').addEventListener('click', fit);
+    shell.querySelector('[data-action="zoom-one"]').addEventListener('click', () => { zoom = 1; apply(); });
+
+    wrap.addEventListener('wheel', (e) => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.1 : 0.9;
+      zoom = clamp(zoom * factor, config.minZoom, config.maxZoom);
+      apply();
+    }, { passive: false });
+
+    wrap.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      wrap.classList.add('is-panning');
+      const start = { x: e.clientX, y: e.clientY, panX, panY };
+      activeDrag = {
+        onMove(ev) {
+          panX = start.panX + (ev.clientX - start.x);
+          panY = start.panY + (ev.clientY - start.y);
+          apply();
+        },
+        onEnd() { wrap.classList.remove('is-panning'); }
+      };
+    });
+
+    wrap.addEventListener('dblclick', fit);
+  }
+
+  document.querySelectorAll('.diagram-shell').forEach(initDiagram);
+</script>
+
+<script>
+(function() {
+  var toggle = document.getElementById('themeToggle');
+  var saved = localStorage.getItem('theme');
+  var initial = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  if (saved) document.documentElement.setAttribute('data-theme', initial);
+  toggle.textContent = initial === 'dark' ? '☀' : '☾';
+  toggle.addEventListener('click', function() {
+    var current = document.documentElement.getAttribute('data-theme')
+      || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    var next = current === 'light' ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    toggle.textContent = next === 'dark' ? '☀' : '☾';
+  });
+})();
+</script>
+
+<script>
+(function() {
+  var toc = document.getElementById('toc');
+  var links = toc.querySelectorAll('a');
+  var sections = [];
+  links.forEach(function(link) {
+    var id = link.getAttribute('href').slice(1);
+    var el = document.getElementById(id);
+    if (el) sections.push({ id: id, el: el, link: link });
+  });
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        links.forEach(function(l) { l.classList.remove('active'); });
+        var match = sections.find(function(s) { return s.el === entry.target; });
+        if (match) {
+          match.link.classList.add('active');
+          if (window.innerWidth <= 1000) {
+            match.link.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+          }
+        }
+      }
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+  sections.forEach(function(s) { observer.observe(s.el); });
+  links.forEach(function(link) {
+    link.addEventListener('click', function(e) {
+      e.preventDefault();
+      var id = link.getAttribute('href').slice(1);
+      var el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        history.replaceState(null, '', '#' + id);
+      }
+    });
+  });
+})();
+</script>

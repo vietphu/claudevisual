@@ -1,0 +1,32 @@
+# Source-only — esbuild bundles/copies everything needed into dist/ at build
+# time (including src/hooks/hook-scripts/* -> dist/hook-scripts/), so no raw
+# src/ files are needed at runtime.
+src/**
+
+# Dev/test-only — never shipped in the packaged extension.
+test/**
+test/fixtures/**
+.vscode/**
+.claude/**
+plans/**
+docs/**
+
+# Build tooling & config — not needed once dist/ is built.
+esbuild.js
+tsconfig.json
+.vscodeignore
+.gitignore
+scripts/**
+
+# Misc project files not needed at runtime.
+overview.md
+package-lock.json
+
+# Dependencies — no runtime "dependencies" are declared (everything is
+# bundled by esbuild), so nothing under node_modules ships regardless;
+# excluded explicitly for defense-in-depth.
+node_modules/**
+
+# Source maps and packaged artifacts.
+**/*.map
+*.vsix

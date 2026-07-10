@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    // "DOM" is required for src/ui/webview-ui/** (browser-context code bundled
+    // separately by esbuild's webview entry, see esbuild.js) — document,
+    // HTMLCanvasElement, MessageEvent, etc. Node-side extension-host files
+    // never reference these globals, so the addition is inert for them.
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "outDir": "out",
+    "rootDir": "."
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist", "out"]
+}

@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "skillListingMaxDescChars": 512,
+  "skillListingBudgetFraction": 0.03,
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(bash:*)",
+      "Bash(npm test:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Read(/path/to/config/**)"
+    ],
+    "defaultMode": "default",
+    "additionalDirectories": [
+      "/private/tmp",
+      "/Users/testuser/.claude"
+    ]
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/user/.claude/hooks/startup.sh",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/user/.claude/hooks/pre-submit.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/user/.claude/hooks/post-tool.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /home/user/.claude/hooks/on-stop.sh",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash /home/user/.claude/hooks/statusline.sh",
+    "padding": 0
+  },
+  "enabledPlugins": {
+    "code-review@claude-plugins-official": true,
+    "playwright@claude-plugins-official": false
+  },
+  "alwaysThinkingEnabled": true,
+  "skipDangerousModePermissionPrompt": false,
+  "agentPushNotifEnabled": true,
+  "effortLevel": "max"
+}
