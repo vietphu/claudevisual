@@ -73,7 +73,8 @@
       "claudevisual": [
         {
           "id": "claudevisual.sessions",
-          "name": "Sessions"
+          "name": "Sessions",
+          "type": "webview"
         }
       ]
     }

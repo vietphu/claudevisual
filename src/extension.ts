@@ -15,13 +15,22 @@ import {
 } from "./hooks/installer";
 import { DashboardPanel } from "./ui/webview/panel";
 import { StatusBar } from "./ui/status-bar";
-import { SessionTreeProvider } from "./ui/tree-view/session-tree-provider";
+import { SidebarViewProvider } from "./ui/webview-view/sidebar-view-provider";
 
 export function activate(context: vscode.ExtensionContext): void {
   initLogger(context);
 
   const statusBar = new StatusBar();
   context.subscriptions.push(statusBar);
+
+  // Sidebar webview is registered exactly once (a view id can't be
+  // re-registered); its backing store is swapped via `setStore` whenever
+  // `rebuild()` recreates the store on a workspace-folder change.
+  const sidebarProvider = new SidebarViewProvider(context.extensionPath);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(SidebarViewProvider.viewId, sidebarProvider),
+    sidebarProvider
+  );
 
   // Tracks whichever SessionStateStore `rebuild()` (below) currently owns, so
   // the "Open Dashboard" command — registered once here, outside `rebuild`'s
@@ -61,6 +70,7 @@ export function activate(context: vscode.ExtensionContext): void {
       logInfo("no workspace folder open — ClaudeVisual stays idle");
       currentStore = undefined;
       statusBar.render([]);
+      sidebarProvider.setStore(undefined);
       return;
     }
 
@@ -78,10 +88,7 @@ export function activate(context: vscode.ExtensionContext): void {
     eventLogReader.start();
     const store = new SessionStateStore(tailers, workspaceCwds, eventLogReader);
     currentStore = store;
-    const treeProvider = new SessionTreeProvider(store);
-    const treeView = vscode.window.createTreeView("claudevisual.sessions", {
-      treeDataProvider: treeProvider,
-    });
+    sidebarProvider.setStore(store);
 
     // Tracks which tailer owns each known session's sub-agent watcher, so a
     // session that drops out of a later `sessions` list (ended, or its
@@ -91,7 +98,7 @@ export function activate(context: vscode.ExtensionContext): void {
     // file watcher per session for the lifetime of the VS Code window.
     const subagentWatcherOwner = new Map<string, JsonlTailer>();
 
-    activeDisposables.push(...tailers, eventLogReader, store, treeProvider, treeView);
+    activeDisposables.push(...tailers, eventLogReader, store);
     activeDisposables.push(
       store.onDidChange((sessions) => {
         statusBar.render(sessions);

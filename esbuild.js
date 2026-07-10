@@ -35,6 +35,23 @@ const webviewConfig = {
 };
 
 /**
+ * Second browser-target bundle: the sidebar WebviewView client (distinct from
+ * the dashboard panel above). Output lives in its own `dist/webview-view/`
+ * folder so each view's `localResourceRoots` can be scoped to just its assets.
+ */
+/** @type {import('esbuild').BuildOptions} */
+const sidebarViewConfig = {
+  entryPoints: ["src/ui/webview-view-ui/main.ts"],
+  bundle: true,
+  outfile: "dist/webview-view/main.js",
+  platform: "browser",
+  format: "iife",
+  target: "es2020",
+  sourcemap: !production,
+  minify: production,
+};
+
+/**
  * Copies `src/hooks/hook-scripts/*` into `dist/hook-scripts/` unmodified.
  * These run standalone via `node`/`bash` once installed into the user's
  * `~/.claude/settings.json` — they are never imported by, or bundled into,
@@ -80,10 +97,27 @@ function copyDashboardCss() {
   console.log("copied dashboard.css to dist/webview");
 }
 
+/**
+ * Copies the sidebar WebviewView stylesheet to `dist/webview-view/sidebar.css`
+ * unmodified — same rationale as {@link copyDashboardCss}: plain CSS linked via
+ * a `<link>` tag, never imported by the TS sources, so esbuild never sees it.
+ */
+function copySidebarCss() {
+  const srcPath = path.join(__dirname, "src", "ui", "webview-view-ui", "sidebar.css");
+  const destDir = path.join(__dirname, "dist", "webview-view");
+  if (!fs.existsSync(srcPath)) {
+    return;
+  }
+  fs.mkdirSync(destDir, { recursive: true });
+  fs.copyFileSync(srcPath, path.join(destDir, "sidebar.css"));
+  console.log("copied sidebar.css to dist/webview-view");
+}
+
 async function run() {
   copyHookScripts();
   copyDashboardCss();
-  const configs = [extensionConfig, webviewConfig];
+  copySidebarCss();
+  const configs = [extensionConfig, webviewConfig, sidebarViewConfig];
   if (watch) {
     const contexts = await Promise.all(configs.map((c) => esbuild.context(c)));
     await Promise.all(contexts.map((ctx) => ctx.watch()));

@@ -464,4 +464,64 @@ describe("state-reducer", () => {
       assert.equal(agent.tokens.inputTokens, 0);
     });
   });
+
+  describe("sub-agent enrichment (model + spawn reason)", () => {
+    function taskLine(input: Record<string, unknown>): ParsedLine {
+      return {
+        type: "assistant",
+        sessionId: "s1",
+        raw: {
+          type: "assistant",
+          message: { content: [{ type: "tool_use", id: "agent-e1", name: "Task", input }] },
+        },
+      };
+    }
+
+    it("captures the spawn reason from the Task description", () => {
+      const state = reduceSessionState(
+        emptySessionState("s1", "/p"),
+        taskLine({ subagent_type: "researcher", description: "research auth", prompt: "long prompt body" })
+      );
+      assert.equal(state.subagents.get("agent-e1")?.spawnReason, "research auth");
+    });
+
+    it("falls back to a truncated prompt when no description", () => {
+      const long = "x".repeat(120);
+      const state = reduceSessionState(
+        emptySessionState("s1", "/p"),
+        taskLine({ subagent_type: "researcher", prompt: long })
+      );
+      const reason = state.subagents.get("agent-e1")?.spawnReason ?? "";
+      assert.ok(reason.length <= 81 && reason.endsWith("…"));
+    });
+
+    it("captures the sub-agent's own model from its transcript line", () => {
+      let state = reduceSessionState(
+        emptySessionState("s1", "/p"),
+        taskLine({ subagent_type: "researcher" })
+      );
+      const agentLine: ParsedLine = {
+        type: "assistant",
+        raw: { type: "assistant", message: { model: "claude-sonnet-5", usage: { input_tokens: 10 } } },
+      };
+      state = reduceSubAgentLine(state, "agent-e1", agentLine);
+      assert.equal(state.subagents.get("agent-e1")?.model, "claude-sonnet-5");
+    });
+
+    it("never lets a sub-agent line mutate the parent's cumulative usage", () => {
+      const parent = { ...emptySessionState("s1", "/p") };
+      parent.cumulativeUsage = {
+        inputTokens: 100,
+        outputTokens: 50,
+        cacheCreationInputTokens: 0,
+        cacheReadInputTokens: 0,
+      };
+      const agentLine: ParsedLine = {
+        type: "assistant",
+        raw: { type: "assistant", message: { model: "claude-sonnet-5", usage: { input_tokens: 999 } } },
+      };
+      const after = reduceSubAgentLine(parent, "agent-e1", agentLine);
+      assert.deepEqual(after.cumulativeUsage, parent.cumulativeUsage);
+    });
+  });
 });

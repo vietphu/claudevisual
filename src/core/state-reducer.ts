@@ -88,7 +88,9 @@ export function reduceSubAgentLine(state: SessionState, agentId: string, line: P
       })
     : existing.tokens;
 
-  const updated: SubAgentState = { ...existing, tokens: nextTokens, lastUpdatedAt: Date.now() };
+  // First non-empty model wins — a sub-agent's model is stable for its lifetime.
+  const model = existing.model ?? (typeof message.model === "string" ? message.model : undefined);
+  const updated: SubAgentState = { ...existing, tokens: nextTokens, model, lastUpdatedAt: Date.now() };
   const subagents = new Map(state.subagents);
   subagents.set(agentId, updated);
   return { ...state, subagents, lastUpdatedAt: Date.now() };
@@ -217,8 +219,24 @@ function upsertSubAgentFromTask(
   }
   const subagentType = typeof input?.subagent_type === "string" ? input.subagent_type : "unknown";
   const next = new Map(subagents);
-  next.set(agentId, emptySubAgentState(agentId, subagentType));
+  next.set(agentId, { ...emptySubAgentState(agentId, subagentType), spawnReason: extractSpawnReason(input) });
   return next;
+}
+
+/** Pulls a short spawn reason off a `Task` call's input — the `description`
+ *  field if present, else a truncated `prompt`. Undefined when neither exists. */
+function extractSpawnReason(input: Record<string, unknown> | undefined): string | undefined {
+  if (!input) {
+    return undefined;
+  }
+  if (typeof input.description === "string" && input.description.trim().length > 0) {
+    return input.description.trim();
+  }
+  if (typeof input.prompt === "string" && input.prompt.trim().length > 0) {
+    const prompt = input.prompt.trim();
+    return prompt.length > 80 ? `${prompt.slice(0, 80)}…` : prompt;
+  }
+  return undefined;
 }
 
 function addSkillInvocation(skillsInvoked: string[], input: Record<string, unknown> | undefined): string[] {

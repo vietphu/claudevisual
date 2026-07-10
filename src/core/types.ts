@@ -103,6 +103,10 @@ export function emptySessionState(sessionId: string, cwd: string): SessionState 
 
 export type SubAgentStatus = "running" | "completed";
 
+/** Sentinel agentId for the main session's own activity, distinguishing it from
+ *  spawned sub-agents in the shared agent-identity color map + economics rollup. */
+export const MAIN_AGENT_ID = "main";
+
 /** One `Task` tool invocation tracked for the lifetime of the parent session. */
 export interface SubAgentState {
   agentId: string;
@@ -111,6 +115,14 @@ export interface SubAgentState {
   tokens: TokenUsage;
   startedAt: number;
   lastUpdatedAt: number;
+  /** The model this sub-agent runs on, captured from its transcript's
+   *  `message.model` (a sub-agent's model is its own, independent of the
+   *  parent's). Undefined until its first assistant line is reduced. */
+  model?: string;
+  /** Short human reason the agent was spawned — the `Task` tool call's
+   *  `description` (falls back to a truncated `prompt`). Undefined if neither
+   *  was present on the spawning call. */
+  spawnReason?: string;
 }
 
 export function emptySubAgentState(
