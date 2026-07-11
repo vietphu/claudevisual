@@ -117,8 +117,10 @@ export function handleAdvisorAction(el: HTMLElement): void {
   }, 1200);
 }
 
-/** Grade → color band, matching the context meter's good/warn/crit palette. */
-function gradeSeverity(grade: string): "good" | "warn" | "crit" {
+/** Grade → color band, matching the context meter's good/warn/crit palette. Shared
+ *  with `render-vitals.ts` so the collapsed row's grade badge never disagrees with
+ *  the expanded Advisor section's own coloring. */
+export function gradeSeverity(grade: string): "good" | "warn" | "crit" {
   if (grade === "A" || grade === "B") {
     return "good";
   }

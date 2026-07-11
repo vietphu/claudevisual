@@ -32,8 +32,26 @@ body {
 }
 
 .cv-idle { padding: 16px 6px; color: var(--dim); font-style: italic; }
-.cv-session { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; }
+.cv-session {
+  display: flex; flex-direction: column; gap: 12px; padding: 12px 8px 0;
+  border-radius: 10px; border-left: 3px solid transparent;
+}
 .cv-session + .cv-session { border-top: 1px solid var(--border); margin-top: 6px; }
+/* Expanded session gets its own accent frame so it visually separates from
+   its (collapsed) siblings — the ask this solves is "which session's detail
+   am I looking at", not just "which one is open". */
+.cv-session:not(.collapsed) {
+  border-left-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  padding-bottom: 12px;
+}
+/* The identifying header stays pinned while the user scrolls a long expanded
+   body (Orchestration/Economics/Activity), so it's never ambiguous which
+   session the detail below belongs to. */
+.cv-session:not(.collapsed) .vitals {
+  position: sticky; top: 0; z-index: 1;
+  background: var(--vscode-sideBar-background);
+}
 
 .section { display: flex; flex-direction: column; gap: 6px; }
 .lbl {
@@ -53,19 +71,41 @@ body {
 
 /* ---- vitals ---- */
 .vitals {
-  background: var(--panel); border: 1px solid var(--border);
+  background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--border);
   border-radius: 10px; padding: 11px;
 }
+/* Advisor-grade-tinted left border — lets a low-scoring session stand out in
+   the (collapsed-by-default) list without opening its detail. */
+.vitals.grade-good { border-left-color: var(--good); }
+.vitals.grade-warn { border-left-color: var(--warn); }
+.vitals.grade-crit { border-left-color: var(--crit); }
 .v-top { display: flex; align-items: center; gap: 8px; cursor: pointer; border-radius: 6px; }
 .v-top:focus-visible {
   outline: 2px solid var(--vscode-focusBorder, var(--accent));
   outline-offset: 2px;
 }
-.v-top::after {
-  content: "›"; flex: none; width: 9px; text-align: center;
-  font-family: var(--mono); font-size: 10px; color: var(--dim); transition: transform 0.15s;
+/* Advisor grade badge, shown once a session has scored. */
+.v-grade {
+  flex: none; font-family: var(--mono); font-size: 11px; font-weight: 700;
+  width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 5px; border: 1px solid var(--border);
 }
-.cv-session:not(.collapsed) .v-top::after { transform: rotate(90deg); }
+.v-grade.good { color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+.v-grade.warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.v-grade.crit { color: var(--crit); background: color-mix(in srgb, var(--crit) 12%, transparent); }
+/* Explicit "View detail"/"Hide detail" button — a labeled, button-styled
+   affordance rather than an implicit chevron, so it's obvious where to click
+   to expand a session. */
+.v-toggle {
+  flex: none; display: inline-flex; align-items: center; gap: 3px;
+  font-family: var(--mono); font-size: 9.5px; font-weight: 600;
+  color: var(--dim); background: var(--panel-hover); border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 8px 3px 9px; white-space: nowrap;
+}
+.v-toggle::after { content: "›"; font-size: 11px; transition: transform 0.15s; }
+.v-top:hover .v-toggle { color: var(--vscode-foreground); border-color: var(--accent); }
+.cv-session:not(.collapsed) .v-toggle { color: var(--accent); border-color: var(--accent); }
+.cv-session:not(.collapsed) .v-toggle::after { transform: rotate(90deg); }
 .cv-body { display: flex; flex-direction: column; gap: 12px; }
 .cv-session.collapsed .cv-body { display: none; }
 .v-head { min-width: 0; flex: 1; }
