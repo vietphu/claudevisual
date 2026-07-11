@@ -1,10 +1,21 @@
-import { DEFAULT_CONTEXT_WINDOW_SIZE, MODEL_CONTEXT_WINDOW_SIZE, SessionState } from "./types";
+import { SessionState } from "./types";
 
 /**
  * Pure display-shaping helpers shared by every session-facing surface (status
  * bar, sidebar webview). Kept vscode-free so the sidebar's view-model can reuse
  * them and both consumers stay unit-testable without the editor host.
  */
+
+/** Approximate context-window sizes (tokens) per model family, used only until
+ * the precise statusLine-derived value is available (Phase 4). */
+const MODEL_CONTEXT_WINDOW_SIZE: Record<string, number> = {
+  "claude-opus-4-8": 200_000,
+  "claude-sonnet-5": 200_000,
+  "claude-fable-5": 200_000,
+  "claude-haiku-4-5-20251001": 200_000,
+};
+
+const DEFAULT_CONTEXT_WINDOW_SIZE = 200_000;
 
 /** Sum of every usage bucket this session — the "total spend" proxy. */
 export function sumUsage(state: SessionState): number {

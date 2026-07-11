@@ -22,6 +22,10 @@ export function renderVitals(s: SessionViewModel): string {
     s.costUsd !== undefined
       ? `<div class="stat"><b class="good">${s.costEstimated ? "~" : ""}$${s.costUsd.toFixed(2)}</b><u>cost${s.costEstimated ? " · est" : ""}</u></div>`
       : "";
+  const burn =
+    s.running || s.burnRatePerMin !== undefined
+      ? `<div class="stat"><b>${s.burnRatePerMin !== undefined ? `~${formatTokens(s.burnRatePerMin)}` : "—"}</b><u>tok/min</u></div>`
+      : "";
 
   return `
   <div class="vitals">
@@ -41,6 +45,7 @@ export function renderVitals(s: SessionViewModel): string {
         <div class="stat"><b>${formatTokens(s.totalTokens)}</b><u>tokens</u></div>
         ${cost}
         <div class="stat"><b>${s.agents.length}</b><u>agents</u></div>
+        ${burn}
       </div>
     </div>
   </div>`;

@@ -1,17 +1,13 @@
 import { agentColorIndex } from "./agent-color";
+import { buildAgentTree, flattenAgentTree } from "../../core/agent-tree";
+import { toFeedItem } from "./feed-item";
+import { buildHeartbeat } from "./heartbeat";
 import { resolveContextPercent, sumUsage } from "../../core/session-display";
 import { estimateCostUsd } from "../../core/model-pricing";
 import { tokenEconomics } from "../../core/token-economics";
 import { MAIN_AGENT_ID, SessionState, SubAgentState, ToolCallRecord } from "../../core/types";
 import { extractFiles } from "./touched-files";
-import {
-  AgentViewModel,
-  EconomicsViewModel,
-  FeedItemViewModel,
-  SessionViewModel,
-  SidebarViewModel,
-  ToolCategory,
-} from "./sidebar-messages";
+import { AgentViewModel, EconomicsViewModel, SessionViewModel, SidebarViewModel } from "./sidebar-messages";
 
 /**
  * Pure host-side transform: `SessionState[]` (rich in-memory model, holds Maps)
@@ -43,40 +39,20 @@ function toSessionViewModel(state: SessionState): SessionViewModel {
     totalTokens: sumUsage(state),
     costUsd,
     costEstimated,
-    agents: Array.from(state.subagents.values())
-      .sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt)
-      .map(toAgentViewModel),
+    burnRatePerMin: state.burnRatePerMin,
+    // Orchestration tree: the main session is the synthetic root, with its
+    // spawned sub-agents nested beneath (pre-order — a parent row immediately
+    // precedes its nested children, each tagged with its depth for indentation).
+    // Main is only shown once orchestration actually happened (≥1 sub-agent).
+    mainAgent: state.subagents.size > 0 ? toMainAgentViewModel(state) : undefined,
+    agents: flattenAgentTree(buildAgentTree(state.subagents)).map((node) =>
+      toAgentViewModel(node.agent, node.depth)
+    ),
     economics,
     heartbeat: buildHeartbeat(state),
     feed: calls.map(toFeedItem),
     files: extractFiles(calls),
   };
-}
-
-/** Max heartbeat bars kept — a recent window, not the whole session. */
-const HEARTBEAT_MAX = 48;
-
-/**
- * Activity heartbeat: merge the main session's tool calls (main identity color)
- * with every sub-agent's own tool calls (each agent's color), order by real
- * transcript time, and keep the most recent window. Purely derived from
- * `SessionState` — no hooks required.
- */
-function buildHeartbeat(state: SessionState): number[] {
-  const samples: Array<{ ts: number; colorIndex: number }> = [];
-  const mainColor = agentColorIndex(MAIN_AGENT_ID);
-  for (const call of state.recentToolCalls) {
-    samples.push({ ts: call.timestamp, colorIndex: mainColor });
-  }
-  for (const agent of state.subagents.values()) {
-    const color = agentColorIndex(agent.agentId);
-    for (const call of agent.recentToolCalls) {
-      samples.push({ ts: call.timestamp, colorIndex: color });
-    }
-  }
-  samples.sort((a, b) => a.ts - b.ts);
-  const tail = samples.length > HEARTBEAT_MAX ? samples.slice(samples.length - HEARTBEAT_MAX) : samples;
-  return tail.map((s) => s.colorIndex);
 }
 
 /** Precise statusline cost wins; otherwise fall back to a pricing-table
@@ -106,7 +82,7 @@ function toEconomics(state: SessionState): EconomicsViewModel {
   };
 }
 
-function toAgentViewModel(agent: SubAgentState): AgentViewModel {
+function toAgentViewModel(agent: SubAgentState, depth: number): AgentViewModel {
   const t = agent.tokens;
   const calls = agent.recentToolCalls.slice().reverse(); // most-recent first
   return {
@@ -117,42 +93,45 @@ function toAgentViewModel(agent: SubAgentState): AgentViewModel {
     colorIndex: agentColorIndex(agent.agentId),
     model: agent.model,
     spawnReason: agent.spawnReason,
+    depth,
+    calls: agent.recentToolCalls.length,
+    durationMs: callSpanMs(agent.recentToolCalls),
     detail: { calls: calls.map(toFeedItem), files: extractFiles(calls) },
   };
 }
 
-function toFeedItem(call: ToolCallRecord): FeedItemViewModel {
+/** The main session as the tree's root node: main-only token spend, its own
+ *  model + recent activity. Running whenever the session is live or working. */
+function toMainAgentViewModel(state: SessionState): AgentViewModel {
+  const calls = state.recentToolCalls.slice().reverse(); // most-recent first
   return {
-    name: call.name,
-    detail: call.detail,
-    category: categorize(call.name),
-    time: formatClock(call.timestamp),
-    spawn: call.name === "Task",
+    agentId: MAIN_AGENT_ID,
+    type: "main",
+    status: state.running || state.isLive ? "running" : "completed",
+    tokens: sumUsage(state),
+    colorIndex: agentColorIndex(MAIN_AGENT_ID),
+    model: state.model,
+    depth: 0,
+    calls: state.recentToolCalls.length,
+    detail: { calls: calls.map(toFeedItem), files: extractFiles(calls) },
   };
 }
 
-function categorize(name: string): ToolCategory {
-  if (name === "Read" || name === "Grep" || name === "Glob") {
-    return "read";
+/** Real elapsed span (ms) across a tool-call ring, first→last by transcript
+ *  time. Undefined for fewer than two calls or a zero span — never fabricated. */
+function callSpanMs(calls: readonly ToolCallRecord[]): number | undefined {
+  if (calls.length < 2) {
+    return undefined;
   }
-  if (name === "Edit" || name === "Write" || name === "MultiEdit" || name === "NotebookEdit") {
-    return "edit";
+  let min = calls[0].timestamp;
+  let max = calls[0].timestamp;
+  for (const c of calls) {
+    if (c.timestamp < min) {
+      min = c.timestamp;
+    }
+    if (c.timestamp > max) {
+      max = c.timestamp;
+    }
   }
-  if (name === "Bash") {
-    return "bash";
-  }
-  if (name === "TodoWrite" || name === "Task") {
-    return "flow";
-  }
-  if (name === "Skill") {
-    return "agent";
-  }
-  return "other";
-}
-
-function formatClock(ms: number): string {
-  if (!ms || ms <= 0) {
-    return "";
-  }
-  return new Date(ms).toLocaleTimeString(undefined, { hour12: false });
+  return max > min ? max - min : undefined;
 }

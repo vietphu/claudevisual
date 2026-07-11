@@ -12,7 +12,7 @@ const CATEGORY_ICON: Record<ToolCategory, string> = {
 };
 
 /** Recent-activity feed: color-coded, most-recent first, with spawn events
- *  (`Task`) given a distinct dashed treatment. */
+ *  (`Agent`) given a distinct dashed treatment. */
 export function renderFeed(s: SessionViewModel): string {
   if (s.feed.length === 0) {
     return "";

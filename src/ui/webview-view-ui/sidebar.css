@@ -47,6 +47,8 @@ body {
   background: var(--panel); border: 1px solid var(--border-soft);
   border-radius: 10px; padding: 0 6px;
 }
+.lbl .liveN { display: flex; align-items: center; gap: 4px; color: var(--good); letter-spacing: 0; }
+.lbl .liveN .d { width: 6px; height: 6px; border-radius: 50%; background: var(--good); animation: pulse 2.4s ease-out infinite; }
 .empty { color: var(--dim); font-style: italic; padding: 4px 2px; }
 
 /* ---- vitals ---- */
@@ -106,11 +108,23 @@ body {
 
 /* ---- agents ---- */
 .agents { display: flex; flex-direction: column; gap: 2px; }
+.agent { position: relative; margin-left: calc(var(--depth, 0) * 14px); }
+/* nesting connector: a short elbow linking a child row to its parent's rail */
+.agent.nested::before {
+  content: ""; position: absolute; left: -8px; top: 0; bottom: 0;
+  border-left: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  width: 7px; height: 16px; border-bottom-left-radius: 5px;
+}
 .agent-row {
   display: flex; align-items: flex-start; gap: 7px; padding: 5px 6px; border-radius: 7px;
   border-left: 3px solid var(--ac); background: var(--panel);
 }
 .agent-row:hover { background: var(--panel-hover); }
+.acalls {
+  font-family: var(--mono); font-size: 9.5px; font-weight: 600; color: var(--ac);
+  padding: 0 5px; border-radius: 10px; border: 1px solid var(--border-soft);
+  background: color-mix(in srgb, var(--ac) 10%, transparent); white-space: nowrap;
+}
 .agent-row .st { width: 13px; text-align: center; font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--ac); margin-top: 1px; }
 .agent-row[data-status="completed"] .st { color: var(--good); }
 .adot { width: 8px; height: 8px; border-radius: 50%; background: var(--ac); flex: none; margin-top: 4px; }
@@ -119,6 +133,7 @@ body {
 .aname { flex: 1; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ameta { margin-left: auto; display: flex; align-items: center; gap: 6px; flex: none; }
 .atok { font-family: var(--mono); font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dim); }
+.adur { font-family: var(--mono); font-size: 9.5px; color: var(--dim); white-space: nowrap; }
 .areason { font-size: 10px; color: var(--dim); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .areason::before { content: "↳ "; color: var(--ac); }
 

@@ -2,7 +2,7 @@ import { strict as assert } from "assert";
 import { toSidebarViewModel } from "../../src/ui/webview-view/session-view-model";
 import { emptySessionState, emptySubAgentState, SessionState, ToolCallRecord } from "../../src/core/types";
 
-function withCalls(state: SessionState, calls: ToolCallRecord[]): SessionState {
+export function withCalls(state: SessionState, calls: ToolCallRecord[]): SessionState {
   return { ...state, recentToolCalls: calls };
 }
 
@@ -67,11 +67,11 @@ describe("session-view-model", () => {
     const state = withCalls(emptySessionState("s1", "/p"), [
       { name: "Read", detail: "src/a.ts", timestamp: 1 },
       { name: "Bash", detail: "npm run test", timestamp: 2 },
-      { name: "Task", detail: "researcher", timestamp: 3 },
+      { name: "Agent", detail: "researcher", timestamp: 3 },
     ]);
     const vm = toSidebarViewModel([state]).sessions[0];
 
-    assert.equal(vm.feed[0].name, "Task");
+    assert.equal(vm.feed[0].name, "Agent");
     assert.equal(vm.feed[0].spawn, true);
     assert.equal(vm.feed[0].category, "flow");
     assert.equal(vm.feed[1].category, "bash");
@@ -106,47 +106,10 @@ describe("session-view-model", () => {
     assert.equal(vm.files[0].dir, "/Users/x/Application Support");
   });
 
-  it("maps sub-agents to rows with summed tokens and a color index", () => {
-    const state = emptySessionState("s1", "/p");
-    const agent = emptySubAgentState("agent-x", "researcher", 1000);
-    agent.status = "completed";
-    agent.tokens = { inputTokens: 10, outputTokens: 5, cacheCreationInputTokens: 1, cacheReadInputTokens: 4 };
-    state.subagents.set("agent-x", agent);
-
+  it("passes the store-computed burn rate through to the view-model", () => {
+    const state = { ...emptySessionState("s1", "/p"), burnRatePerMin: 42_000 };
     const vm = toSidebarViewModel([state]).sessions[0];
-    assert.equal(vm.agents.length, 1);
-    assert.equal(vm.agents[0].type, "researcher");
-    assert.equal(vm.agents[0].status, "completed");
-    assert.equal(vm.agents[0].tokens, 20);
-    assert.ok(vm.agents[0].colorIndex >= 1);
-  });
-
-  it("builds agent drill-down detail and a merged, agent-colored heartbeat", () => {
-    const state = emptySessionState("s1", "/p");
-    state.recentToolCalls = [
-      { name: "Bash", detail: "npm test", timestamp: 100 },
-      { name: "Edit", detail: "src/a.ts", timestamp: 300 },
-    ];
-    const agent = emptySubAgentState("agent-x", "researcher", 1);
-    agent.recentToolCalls = [{ name: "Read", detail: "docs/x.md", timestamp: 200 }];
-    state.subagents.set("agent-x", agent);
-
-    const vm = toSidebarViewModel([state]).sessions[0];
-
-    // drill-down: the agent's own call + derived file
-    assert.equal(vm.agents[0].detail.calls[0].name, "Read");
-    assert.equal(vm.agents[0].detail.files[0].base, "x.md");
-
-    // heartbeat: merged + ordered by real ts (100 main, 200 agent, 300 main)
-    assert.equal(vm.heartbeat.length, 3);
-    assert.equal(vm.heartbeat[0], 0); // main identity color = index 0
-    assert.notEqual(vm.heartbeat[1], 0); // sub-agent color != main
-    assert.equal(vm.heartbeat[2], 0);
-  });
-
-  it("has an empty heartbeat when the session has no tool calls", () => {
-    const vm = toSidebarViewModel([emptySessionState("s1", "/p")]).sessions[0];
-    assert.equal(vm.heartbeat.length, 0);
+    assert.equal(vm.burnRatePerMin, 42_000);
   });
 
   it("sorts sessions by most-recently-updated", () => {

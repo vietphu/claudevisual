@@ -66,7 +66,7 @@ dependency — the prior plan is done.
 | 1 | [Webview Shell](./phase-01-webview-shell.md) | ✅ Completed (code; live-verify pending) | — | Low |
 | 2 | [Reducer + Economics](./phase-02-reducer-economics.md) | ✅ Completed (code; live-verify pending) | 1 | Low |
 | 3 | [Drill-down + Heartbeat](./phase-03-drill-down-heartbeat.md) | ✅ Completed (code; live-verify pending) | 1, 2 | Medium |
-| 4 | [Nesting + Extras](./phase-04-nesting-extras.md) | Pending | 3 | High / optional |
+| 4 | [Nesting + Extras](./phase-04-nesting-extras.md) | ✅ Completed (nesting + burn-rate + progress; queued dropped as out-of-scope) | 3 | High / optional |
 
 ## Data-readiness map (verified against source)
 

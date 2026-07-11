@@ -1,6 +1,7 @@
 import { strict as assert } from "assert";
 import { reduceSessionState, reduceSubAgentLine } from "../../src/core/state-reducer";
-import { emptySessionState, ParsedLine } from "../../src/core/types";
+import { emptySessionState, emptySubAgentState } from "../../src/core/types";
+import { ParsedLine } from "../../src/core/transcript-types";
 
 describe("state-reducer", () => {
   describe("reduceSessionState", () => {
@@ -135,7 +136,11 @@ describe("state-reducer", () => {
       assert.equal(result.permissionMode, "acceptEdits");
     });
 
-    it("should detect Task tool_use and create sub-agent state", () => {
+    it("does not create a sub-agent entry from an Agent tool_use block alone", () => {
+      // Identity (type, spawn reason, parent) comes only from the agent's own
+      // `.meta.json` sidecar — see `applySubagentMetaOverlay` — never from the
+      // spawning call's tool_use id, which is a distinct string from the
+      // sub-agent's real agentId in real transcripts.
       const state = emptySessionState("session-1", "/Users/test/project");
       const line: ParsedLine = {
         type: "assistant",
@@ -151,8 +156,8 @@ describe("state-reducer", () => {
             content: [
               {
                 type: "tool_use",
-                id: "agent-abc123",
-                name: "Task",
+                id: "toolu_abc123",
+                name: "Agent",
                 input: {
                   subagent_type: "code-reviewer",
                   prompt: "Review this code",
@@ -164,11 +169,8 @@ describe("state-reducer", () => {
       };
 
       const result = reduceSessionState(state, line);
-      assert(result.subagents.has("agent-abc123"));
-      const agent = result.subagents.get("agent-abc123");
-      assert(agent !== undefined);
-      assert.equal(agent.subagentType, "code-reviewer");
-      assert.equal(agent.status, "running");
+      assert.equal(result.subagents.size, 0);
+      assert.equal(result.recentToolCalls[0].name, "Agent");
     });
 
     it("should detect Skill tool_use and record in skillsInvoked", () => {
@@ -260,33 +262,14 @@ describe("state-reducer", () => {
       assert.deepEqual(result, state, "Assistant without message should be no-op");
     });
 
-    it("should handle user line with tool_result blocks", () => {
+    it("should handle user line with tool_result blocks, matched by the agent's toolUseId (not its map key)", () => {
       let state = emptySessionState("session-1", "/Users/test/project");
+      // The map key is the transcript-filename agentId; `toolUseId` (from the
+      // agent's meta sidecar) is the spawning call's id, a different string.
+      const agent = { ...emptySubAgentState("real-agent-id", "code-reviewer", 1), toolUseId: "toolu_abc123" };
+      state = { ...state, subagents: new Map([["real-agent-id", agent]]) };
+      assert.equal(state.subagents.get("real-agent-id")?.status, "running");
 
-      // First add a Task to running state
-      const taskLine: ParsedLine = {
-        type: "assistant",
-        sessionId: "session-1",
-        cwd: "/Users/test/project",
-        raw: {
-          type: "assistant",
-          message: {
-            usage: { input_tokens: 10, output_tokens: 5 },
-            content: [
-              {
-                type: "tool_use",
-                id: "agent-task-1",
-                name: "Task",
-                input: { subagent_type: "code-reviewer" },
-              },
-            ],
-          },
-        },
-      };
-      state = reduceSessionState(state, taskLine);
-      assert.equal(state.subagents.get("agent-task-1")?.status, "running");
-
-      // Now mark it as completed via tool_result
       const resultLine: ParsedLine = {
         type: "user",
         sessionId: "session-1",
@@ -297,14 +280,14 @@ describe("state-reducer", () => {
             content: [
               {
                 type: "tool_result",
-                tool_use_id: "agent-task-1",
+                tool_use_id: "toolu_abc123",
               },
             ],
           },
         },
       };
       state = reduceSessionState(state, resultLine);
-      assert.equal(state.subagents.get("agent-task-1")?.status, "completed");
+      assert.equal(state.subagents.get("real-agent-id")?.status, "completed");
     });
 
     it("should maintain recentToolCalls ring buffer (max 20)", () => {
@@ -465,46 +448,17 @@ describe("state-reducer", () => {
     });
   });
 
-  describe("sub-agent enrichment (model + spawn reason)", () => {
-    function taskLine(input: Record<string, unknown>): ParsedLine {
-      return {
-        type: "assistant",
-        sessionId: "s1",
-        raw: {
-          type: "assistant",
-          message: { content: [{ type: "tool_use", id: "agent-e1", name: "Task", input }] },
-        },
-      };
-    }
-
-    it("captures the spawn reason from the Task description", () => {
-      const state = reduceSessionState(
-        emptySessionState("s1", "/p"),
-        taskLine({ subagent_type: "researcher", description: "research auth", prompt: "long prompt body" })
-      );
-      assert.equal(state.subagents.get("agent-e1")?.spawnReason, "research auth");
-    });
-
-    it("falls back to a truncated prompt when no description", () => {
-      const long = "x".repeat(120);
-      const state = reduceSessionState(
-        emptySessionState("s1", "/p"),
-        taskLine({ subagent_type: "researcher", prompt: long })
-      );
-      const reason = state.subagents.get("agent-e1")?.spawnReason ?? "";
-      assert.ok(reason.length <= 81 && reason.endsWith("…"));
-    });
-
+  // Spawn-reason/type/parent enrichment moved to `applySubagentMetaOverlay`
+  // (see session-state-overlays.test.ts) — it's sourced from the agent's own
+  // `.meta.json` sidecar now, not from scanning transcript content for nested
+  // `Agent` tool_use blocks.
+  describe("sub-agent model capture", () => {
     it("captures the sub-agent's own model from its transcript line", () => {
-      let state = reduceSessionState(
-        emptySessionState("s1", "/p"),
-        taskLine({ subagent_type: "researcher" })
-      );
       const agentLine: ParsedLine = {
         type: "assistant",
         raw: { type: "assistant", message: { model: "claude-sonnet-5", usage: { input_tokens: 10 } } },
       };
-      state = reduceSubAgentLine(state, "agent-e1", agentLine);
+      const state = reduceSubAgentLine(emptySessionState("s1", "/p"), "agent-e1", agentLine);
       assert.equal(state.subagents.get("agent-e1")?.model, "claude-sonnet-5");
     });
 
@@ -527,14 +481,6 @@ describe("state-reducer", () => {
 
   describe("tool-call timeline (real transcript timestamps)", () => {
     it("parses a sub-agent's tool_use blocks into its ring with the line's real ISO time", () => {
-      let state = reduceSessionState(emptySessionState("s1", "/p"), {
-        type: "assistant",
-        sessionId: "s1",
-        raw: {
-          type: "assistant",
-          message: { content: [{ type: "tool_use", id: "agent-t1", name: "Task", input: { subagent_type: "researcher" } }] },
-        },
-      });
       const iso = "2026-07-10T09:24:20.201Z";
       const agentLine: ParsedLine = {
         type: "assistant",
@@ -544,7 +490,7 @@ describe("state-reducer", () => {
           message: { content: [{ type: "tool_use", id: "x", name: "Read", input: { file_path: "src/a.ts" } }] },
         },
       };
-      state = reduceSubAgentLine(state, "agent-t1", agentLine);
+      const state = reduceSubAgentLine(emptySessionState("s1", "/p"), "agent-t1", agentLine);
       const agent = state.subagents.get("agent-t1");
       assert.equal(agent?.recentToolCalls.length, 1);
       assert.equal(agent?.recentToolCalls[0].name, "Read");

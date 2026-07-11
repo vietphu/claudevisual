@@ -43,7 +43,7 @@ export interface SessionState {
   permissionMode: PermissionMode | undefined;
   isLive: boolean;
   lastUpdatedAt: number;
-  /** Sub-agents (`Task` tool invocations) seen this session, keyed by the tool_use id
+  /** Sub-agents (`Agent` tool invocations) seen this session, keyed by the tool_use id
    *  that also names their transcript file (`<sessionId>/subagents/agent-<id>.jsonl`). */
   subagents: Map<string, SubAgentState>;
   /** Distinct skill/command names invoked this session, in first-seen order. */
@@ -77,6 +77,13 @@ export interface SessionState {
   preciseCostUsd: number | undefined;
   /** Timestamp (ms) `preciseContextPercent`/`preciseCostUsd` were last updated. */
   preciseStatusLineUpdatedAt: number | undefined;
+  /**
+   * Token spend rate (~tokens/min) over a recent sampling window, computed by
+   * the store (not the pure reducer — like `isLive`) from a bounded ring of
+   * `cumulativeUsage` totals. Undefined until at least two samples exist or when
+   * the newest sample is stale (session idle). Display-only.
+   */
+  burnRatePerMin: number | undefined;
 }
 
 export function emptySessionState(sessionId: string, cwd: string): SessionState {
@@ -98,6 +105,7 @@ export function emptySessionState(sessionId: string, cwd: string): SessionState 
     preciseContextPercent: undefined,
     preciseCostUsd: undefined,
     preciseStatusLineUpdatedAt: undefined,
+    burnRatePerMin: undefined,
   };
 }
 
@@ -107,7 +115,7 @@ export type SubAgentStatus = "running" | "completed";
  *  spawned sub-agents in the shared agent-identity color map + economics rollup. */
 export const MAIN_AGENT_ID = "main";
 
-/** One `Task` tool invocation tracked for the lifetime of the parent session. */
+/** One `Agent` tool invocation (a spawned sub-agent) tracked for the lifetime of the parent session. */
 export interface SubAgentState {
   agentId: string;
   subagentType: string;
@@ -119,7 +127,7 @@ export interface SubAgentState {
    *  `message.model` (a sub-agent's model is its own, independent of the
    *  parent's). Undefined until its first assistant line is reduced. */
   model?: string;
-  /** Short human reason the agent was spawned — the `Task` tool call's
+  /** Short human reason the agent was spawned — the `Agent` tool call's
    *  `description` (falls back to a truncated `prompt`). Undefined if neither
    *  was present on the spawning call. */
   spawnReason?: string;
@@ -127,6 +135,20 @@ export interface SubAgentState {
    *  calls, parsed from its transcript — drives the agent drill-down panel and
    *  its contribution to the activity heartbeat. */
   recentToolCalls: ToolCallRecord[];
+  /**
+   * The agentId of the agent that spawned this one, sourced from this agent's
+   * own `agent-<agentId>.meta.json` sidecar (see `core/subagent-meta-reader.ts`).
+   * NOT derivable from the parent's `Agent` tool_use `id` — verified against
+   * real transcripts that id is a distinct `toolu_...` string, unrelated to
+   * this file's `agentId`. Undefined for a top-level agent (spawned by the
+   * main session) or until its meta sidecar has been read.
+   */
+  parentAgentId?: string;
+  /** The `id` of the `Agent` tool_use block that spawned this agent (from the
+   *  same meta sidecar as `parentAgentId`) — the only way to match this agent
+   *  to its spawning call's later `tool_result` and flip `status` to `completed`,
+   *  since that id is unrelated to `agentId`. */
+  toolUseId?: string;
 }
 
 export function emptySubAgentState(
@@ -150,42 +172,4 @@ export interface ToolCallRecord {
   name: string;
   detail?: string;
   timestamp: number;
-}
-
-/** Approximate context-window sizes (tokens) per model family, used only until
- * the precise statusLine-derived value is available (Phase 4). */
-export const MODEL_CONTEXT_WINDOW_SIZE: Record<string, number> = {
-  "claude-opus-4-8": 200_000,
-  "claude-sonnet-5": 200_000,
-  "claude-fable-5": 200_000,
-  "claude-haiku-4-5-20251001": 200_000,
-};
-
-export const DEFAULT_CONTEXT_WINDOW_SIZE = 200_000;
-
-export type ParsedLineType =
-  | "user"
-  | "assistant"
-  | "mode"
-  | "queue-operation"
-  | "attachment"
-  | "file-history-snapshot"
-  | "last-prompt"
-  | "ai-title"
-  | "system"
-  | (string & {});
-
-/** Shape of `message.usage` as written by Claude Code (snake_case, API-native). */
-export interface RawAssistantUsage {
-  input_tokens?: number;
-  output_tokens?: number;
-  cache_creation_input_tokens?: number;
-  cache_read_input_tokens?: number;
-}
-
-export interface ParsedLine {
-  type: ParsedLineType;
-  sessionId?: string;
-  cwd?: string;
-  raw: Record<string, unknown>;
 }

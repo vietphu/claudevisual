@@ -26,6 +26,22 @@ export function formatTokens(n: number): string {
   return `${n}`;
 }
 
+/** Compact elapsed duration: `52s`, `1m10s`, `3m22s`, `1h04m`. */
+export function formatDuration(ms: number): string {
+  const total = Math.round(ms / 1000);
+  if (total < 60) {
+    return `${total}s`;
+  }
+  const m = Math.floor(total / 60);
+  if (m < 60) {
+    const s = total % 60;
+    return s ? `${m}m${s}s` : `${m}m`;
+  }
+  const h = Math.floor(m / 60);
+  const rm = m % 60;
+  return `${h}h${String(rm).padStart(2, "0")}m`;
+}
+
 /** Model family for the tier-colored chip: opus | sonnet | haiku | fable | other. */
 export function modelTier(model: string | undefined): string {
   if (!model) {

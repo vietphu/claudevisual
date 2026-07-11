@@ -1,12 +1,16 @@
 import * as vscode from "vscode";
 import { logInfo } from "../diagnostics/logger";
-import { deriveRunningState, EventLogReader, HookEventRecord, StatuslineCacheRecord } from "./event-log-reader";
-import { JsonlLineEvent, JsonlTailer } from "./jsonl-tailer";
+import { EventLogReader, HookEventRecord, StatuslineCacheRecord } from "./event-log-reader";
+import { JsonlLineEvent, JsonlTailer, SubagentMetaEvent } from "./jsonl-tailer";
+import { applyHookEventOverlay, applyStatuslineOverlay, applySubagentMetaOverlay } from "./session-state-overlays";
 import { listLiveSessionIds } from "./session-registry";
 import { computeMetricsDiffs, MetricsSnapshot, SessionMetricsDiff } from "./session-metrics-diff";
+import { sumUsage } from "./session-display";
 import { reduceSessionState, reduceSubAgentLine } from "./state-reducer";
+import { BurnRateTracker } from "./token-burn";
 import { parseTranscriptLine } from "./transcript-parser";
-import { emptySessionState, ParsedLine, SessionState } from "./types";
+import { ParsedLine } from "./transcript-types";
+import { emptySessionState, SessionState } from "./types";
 
 export type { SessionMetricsDiff } from "./session-metrics-diff";
 
@@ -24,6 +28,7 @@ export class SessionStateStore implements vscode.Disposable {
   private readonly emitter = new vscode.EventEmitter<SessionState[]>();
   private readonly metricsEmitter = new vscode.EventEmitter<SessionMetricsDiff[]>();
   private readonly metricsSnapshots = new Map<string, MetricsSnapshot>();
+  private readonly burnRates = new BurnRateTracker();
   private readonly disposables: vscode.Disposable[] = [];
   private debounceHandle: ReturnType<typeof setTimeout> | undefined;
   private livePollHandle: ReturnType<typeof setInterval> | undefined;
@@ -50,6 +55,7 @@ export class SessionStateStore implements vscode.Disposable {
   ) {
     for (const tailer of tailers) {
       this.disposables.push(tailer.onLine((event) => this.handleLine(event)));
+      this.disposables.push(tailer.onSubagentMeta((event) => this.applySubagentMeta(event)));
     }
     if (eventLogReader) {
       this.disposables.push(eventLogReader.onEvent((record) => this.applyHookEvent(record)));
@@ -100,48 +106,26 @@ export class SessionStateStore implements vscode.Disposable {
     this.scheduleChangeEvent();
   }
 
-  /**
-   * Overlays one hook-log event onto the session's `running` state. Fires
-   * ahead of the JSONL tailer for the same lifecycle transition, which is
-   * the entire point of the opt-in hooks path. If the session isn't known
-   * yet (the hook can win the race against the transcript line landing), a
-   * minimal placeholder is synthesized so the low-latency signal isn't
-   * dropped — the JSONL tailer fills in the rest of the state once its line
-   * arrives.
-   */
+  /** Fires ahead of the JSONL tailer for the same lifecycle transition — see {@link applyHookEventOverlay}. */
   private applyHookEvent(record: HookEventRecord): void {
-    const previous = this.states.get(record.sessionId);
-    const nextRunning = deriveRunningState(record.hookEvent) ?? previous?.running ?? false;
-    const base = previous ?? emptySessionState(record.sessionId, "");
-
-    this.states.set(record.sessionId, {
-      ...base,
-      running: nextRunning,
-      lastHookEvent: record.hookEvent ?? base.lastHookEvent,
-      lastHookEventAt: record.ts,
-      lastUpdatedAt: Math.max(base.lastUpdatedAt, record.ts),
-    });
-    this.scheduleChangeEvent();
+    this.applyOverlay(record.sessionId, applyHookEventOverlay(this.states.get(record.sessionId), record));
   }
 
-  /**
-   * Overlays one `statusline-cache.json` snapshot (Phase 4) onto the
-   * session's precise context%/cost fields, replacing the JSONL-derived
-   * approximation for display purposes. Same race-tolerant placeholder
-   * synthesis as {@link applyHookEvent}: the statusline tick can win against
-   * the transcript line establishing the session first.
-   */
+  /** Replaces the JSONL-derived approximation with precise data — see {@link applyStatuslineOverlay}. */
   private applyStatuslineUpdate(record: StatuslineCacheRecord): void {
-    const previous = this.states.get(record.sessionId);
-    const base = previous ?? emptySessionState(record.sessionId, "");
+    this.applyOverlay(record.sessionId, applyStatuslineOverlay(this.states.get(record.sessionId), record));
+  }
 
-    this.states.set(record.sessionId, {
-      ...base,
-      preciseContextPercent: record.contextUsedPercent ?? base.preciseContextPercent,
-      preciseCostUsd: record.costUsd ?? base.preciseCostUsd,
-      preciseStatusLineUpdatedAt: record.ts,
-      lastUpdatedAt: Math.max(base.lastUpdatedAt, record.ts),
-    });
+  /** Authoritative type/spawn-reason/nesting for one sub-agent — see {@link applySubagentMetaOverlay}. */
+  private applySubagentMeta(event: SubagentMetaEvent): void {
+    this.applyOverlay(
+      event.sessionId,
+      applySubagentMetaOverlay(this.states.get(event.sessionId), event.sessionId, event.agentId, event.meta)
+    );
+  }
+
+  private applyOverlay(sessionId: string, next: SessionState): void {
+    this.states.set(sessionId, next);
     this.scheduleChangeEvent();
   }
 
@@ -151,6 +135,7 @@ export class SessionStateStore implements vscode.Disposable {
     }
     this.debounceHandle = setTimeout(() => {
       this.debounceHandle = undefined;
+      this.sampleBurnRates();
       this.emitter.fire(this.snapshot());
       const metricsDiffs = computeMetricsDiffs(this.states.values(), this.metricsSnapshots);
       if (metricsDiffs.length > 0) {
@@ -159,14 +144,36 @@ export class SessionStateStore implements vscode.Disposable {
     }, CHANGE_DEBOUNCE_MS);
   }
 
+  /**
+   * Samples each session's cumulative token total into its bounded ring and
+   * refreshes the display-only `burnRatePerMin`. Runs on the same debounced
+   * tick as the change event (transcript-write driven) — the ring's own min-gap
+   * keeps sample spacing sane regardless of append burstiness. Like `isLive`,
+   * this is store-owned runtime state, set outside the pure reducer.
+   */
+  private sampleBurnRates(): void {
+    const now = Date.now();
+    for (const [id, state] of this.states) {
+      const rate = this.burnRates.sample(id, now, sumUsage(state));
+      if (state.burnRatePerMin !== rate) {
+        this.states.set(id, { ...state, burnRatePerMin: rate });
+      }
+    }
+  }
+
   private startLivePolling(): void {
     const poll = async () => {
       const liveIds = await listLiveSessionIds(this.workspaceCwds);
+      const now = Date.now();
       let changed = false;
       for (const [id, state] of this.states) {
         const isLive = liveIds.has(id);
-        if (state.isLive !== isLive) {
-          this.states.set(id, { ...state, isLive });
+        // Re-evaluate burn staleness here too (not just on transcript ticks):
+        // a finished/idle session stops writing lines, so without this its last
+        // rate would linger forever.
+        const burn = this.burnRates.recompute(id, now);
+        if (state.isLive !== isLive || state.burnRatePerMin !== burn) {
+          this.states.set(id, { ...state, isLive, burnRatePerMin: burn });
           changed = true;
         }
       }

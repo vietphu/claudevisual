@@ -2,6 +2,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 import { logDebug, logError, logInfo } from "../diagnostics/logger";
+import { SubagentFileRegistry } from "./subagent-file-registry";
 
 export interface JsonlLineEvent {
   filePath: string;
@@ -17,9 +18,10 @@ export interface JsonlLineEvent {
   agentId?: string;
 }
 
+export type { SubagentMetaEvent } from "./subagent-file-registry";
+
 const PRIME_TAIL_BYTES = 2_000_000;
 const PARTIAL_LINE_FLUSH_MS = 1000;
-const AGENT_FILE_NAME_RE = /^agent-(.+)\.jsonl$/;
 
 /**
  * Tails every `*.jsonl` file directly under `dir`, emitting one event per
@@ -40,11 +42,13 @@ export class JsonlTailer implements vscode.Disposable {
   /** One narrow watcher per known session's `subagents/*.jsonl`, added lazily via
    *  `addSessionSubagentWatcher` — never a broad/recursive watch of `this.dir`. */
   private readonly sessionWatchers = new Map<string, vscode.FileSystemWatcher>();
-  /** filePath -> (sessionId, agentId) for every sub-agent transcript file seen,
-   *  so `emitCompleteLines` can tag emitted events without re-parsing the path. */
-  private readonly subagentFileMeta = new Map<string, { sessionId: string; agentId: string }>();
+  /** Tracks sub-agent transcript file identity + `.meta.json` sidecar discovery
+   *  (see `core/subagent-file-registry.ts`). */
+  private readonly subagentFiles = new SubagentFileRegistry();
 
   readonly onLine = this.emitter.event;
+  /** Fired once per sub-agent whose `.meta.json` sidecar becomes readable. */
+  readonly onSubagentMeta = this.subagentFiles.onSubagentMeta;
 
   constructor(private readonly dir: string) {
     logInfo(`jsonl-tailer: watching ${dir}`);
@@ -110,7 +114,8 @@ export class JsonlTailer implements vscode.Disposable {
     const pattern = new vscode.RelativePattern(subagentsDir, "*.jsonl");
     const watcher = vscode.workspace.createFileSystemWatcher(pattern);
     const onEvent = (uri: vscode.Uri) => {
-      this.registerSubagentFile(uri.fsPath, sessionId);
+      this.subagentFiles.register(uri.fsPath, sessionId);
+      this.subagentFiles.maybeEmitMeta(uri.fsPath);
       void this.enqueueRead(uri.fsPath);
     };
     watcher.onDidChange(onEvent);
@@ -131,18 +136,10 @@ export class JsonlTailer implements vscode.Disposable {
     logDebug(`jsonl-tailer: stopped watching subagents for session ${sessionId}`);
   }
 
-  private registerSubagentFile(filePath: string, sessionId: string): void {
-    const match = AGENT_FILE_NAME_RE.exec(path.basename(filePath));
-    if (!match) {
-      return;
-    }
-    this.subagentFileMeta.set(filePath, { sessionId, agentId: match[1] });
-  }
-
   /** Primes every sub-agent transcript already on disk for one session. Unlike
    * `primeExisting` (newest-file-only, whole-project scope), this reads every
    * file in the session's own `subagents/` dir — that directory is naturally
-   * small (bounded by how many Task calls one session makes). */
+   * small (bounded by how many Agent calls one session makes). */
   private async primeSubagentFiles(subagentsDir: string, sessionId: string): Promise<void> {
     if (!fs.existsSync(subagentsDir)) {
       return;
@@ -150,7 +147,8 @@ export class JsonlTailer implements vscode.Disposable {
     const entries = await fs.promises.readdir(subagentsDir).catch(() => [] as string[]);
     const files = entries.filter((e) => e.endsWith(".jsonl")).map((e) => path.join(subagentsDir, e));
     for (const filePath of files) {
-      this.registerSubagentFile(filePath, sessionId);
+      this.subagentFiles.register(filePath, sessionId);
+      this.subagentFiles.maybeEmitMeta(filePath);
       const stat = await fs.promises.stat(filePath).catch(() => undefined);
       if (!stat) {
         continue;
@@ -207,7 +205,7 @@ export class JsonlTailer implements vscode.Disposable {
     const trailing = lines.pop() ?? "";
     this.partialLines.set(filePath, trailing);
 
-    const meta = this.subagentFileMeta.get(filePath);
+    const meta = this.subagentFiles.lookup(filePath);
     let emitted = 0;
     for (const line of lines) {
       const trimmed = line.trim();
@@ -240,7 +238,7 @@ export class JsonlTailer implements vscode.Disposable {
         const pending = this.partialLines.get(filePath)?.trim();
         if (pending) {
           this.partialLines.set(filePath, "");
-          const meta = this.subagentFileMeta.get(filePath);
+          const meta = this.subagentFiles.lookup(filePath);
           this.emitter.fire({ filePath, line: pending, sessionId: meta?.sessionId, agentId: meta?.agentId });
         }
       }, PARTIAL_LINE_FLUSH_MS)
@@ -264,6 +262,7 @@ export class JsonlTailer implements vscode.Disposable {
     }
     this.sessionWatchers.clear();
     this.emitter.dispose();
+    this.subagentFiles.dispose();
     for (const timer of this.flushTimers.values()) {
       clearTimeout(timer);
     }

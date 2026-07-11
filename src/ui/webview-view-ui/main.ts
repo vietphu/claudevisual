@@ -30,6 +30,9 @@ function render(root: HTMLElement, vm: SidebarViewModel): void {
   // re-apply the open class to those that are (innerHTML wiped it).
   const present = new Set<string>();
   for (const s of vm.sessions) {
+    if (s.mainAgent) {
+      present.add(s.mainAgent.agentId);
+    }
     for (const a of s.agents) {
       present.add(a.agentId);
     }

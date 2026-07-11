@@ -1,13 +1,50 @@
 ---
 phase: 4
 title: "Nesting + Extras"
-status: pending
+status: completed
 priority: P3
 effort: "1-2d (optional / incremental)"
 dependencies: [3]
 ---
 
 # Phase 4: Nesting + Extras
+
+## Outcome (implemented)
+
+- **Nesting** ✅ — **redesigned after real-data verification found the original
+  approach didn't work.** The original implementation reconstructed parent→child
+  from `SubAgentState.childAgentIds`, assuming a spawning `Task` tool_use block's
+  `id` equals the child's transcript-filename agentId. Spawning a real nested run
+  and inspecting the actual files on disk (per this phase's own risk-assessment
+  gate) showed that assumption is false: (a) the spawn tool is named `Agent`, not
+  `Task`, in real transcripts; (b) each sub-agent has an `agent-<agentId>.meta.json`
+  sidecar (`toolUseId`, `agentType`, `description`, `parentAgentId`) that the
+  code never read, and the spawning tool_use's `id` is a distinct `toolu_...`
+  string unrelated to the filename agentId. Under the old code every real spawn
+  produced two split ghost rows (one with the right type but 0 tokens, one with
+  real tokens but type stuck `"unknown"`), and nesting never matched.
+  Redesigned around the meta sidecar: `core/subagent-meta-reader.ts` reads it,
+  `core/subagent-file-registry.ts` (split out of `jsonl-tailer.ts`) discovers it
+  and fires `onSubagentMeta`, `applySubagentMetaOverlay` in
+  `session-state-overlays.ts` is the sole source of a sub-agent's type, spawn
+  reason, `parentAgentId`, and `toolUseId` (also used to match its later
+  `tool_result` and flip `status` to `completed`, replacing the same broken
+  id-matching there). `core/agent-tree.ts` now groups by each agent's own
+  `parentAgentId` (bottom-up) instead of scanning transcript content for nested
+  spawns (top-down) — simpler and, per the real-data run, actually correct.
+  Verified end-to-end against a real nested run's on-disk transcripts +
+  `.meta.json` files (not just fixtures): correct type, correct token totals, no
+  duplicate entries, correct parent/child tree.
+- **Burn-rate** ✅ — `src/core/token-burn.ts` (bounded sample ring + tokens/min)
+  sampled by the store on its debounced tick; shown as `~NK/min` in vitals, `—`
+  before the second sample / when idle (stale).
+- **Progress** ✅ — honest `N calls` chip on running agents (observed tool-call
+  count), never a fabricated percentage.
+- **Queued agents** ⛔ DROPPED as out-of-scope — hook/transcript data only shows
+  agents *after* spawn; the only "planned" source would be a plan/todo file,
+  which is fabrication-prone and not reliably present. Per the risk assessment
+  below, not shipped rather than shown as invented data; the mockup's queued rows
+  are not rendered.
 
 ## Overview
 
@@ -75,13 +112,15 @@ prefer showing "N calls · running" over a fake percentage if the estimate is to
 
 ## Success Criteria
 
-- [ ] Nesting: a real planner→researcher run renders nested, matching the on-disk `subagents/`
-      structure; out-of-order tails don't misparent (test covers it).
-- [ ] Burn-rate shows a plausible `~NK/min` after the second sample; "—" before.
-- [ ] Progress indicator is present on the running agent and clearly labelled approximate.
-- [ ] Queued overlay either works from a real plan source OR is documented as out-of-scope with the
-      mockup rows removed — no fabricated data.
-- [ ] Each feature fails open independently; files < 200 lines; typecheck + tests green.
+- [x] Nesting: a real nested run renders nested, matching the on-disk `subagents/` structure +
+      `.meta.json` sidecars; out-of-order tails don't misparent (unit tests + a real-transcript
+      verification script both cover it — see Outcome above).
+- [x] Burn-rate shows a plausible `~NK/min` after the second sample; "—" before (unit-tested).
+- [x] Progress indicator is present on the running agent and clearly labelled approximate (`N calls`).
+- [x] Queued overlay is documented as out-of-scope with the mockup rows removed — no fabricated data.
+- [x] Each feature fails open independently; files < 200 lines (all new/changed files in this phase;
+      `jsonl-tailer.ts` and `event-log-reader.ts` remain over 200 — pre-existing, reduced but not
+      eliminated as a side effect); typecheck + tests green (137 passing).
 
 ## Risk Assessment
 

@@ -15,6 +15,15 @@ export interface AgentViewModel {
   colorIndex: number;
   model?: string;
   spawnReason?: string;
+  /** Nesting depth in the reconstructed agent tree (0 = spawned by the main
+   *  session). Drives the row's indentation. */
+  depth: number;
+  /** Count of this agent's observed tool calls — an honest activity proxy shown
+   *  for running agents (there is no ground-truth progress signal). */
+  calls: number;
+  /** Elapsed time (ms) spanned by this agent's observed tool calls (first→last),
+   *  or undefined when fewer than two are recorded. Shown for completed agents. */
+  durationMs?: number;
   /** This agent's own tool calls + files, shown when its row is expanded. */
   detail: AgentDetailViewModel;
 }
@@ -54,7 +63,7 @@ export interface FeedItemViewModel {
   category: ToolCategory;
   /** Local `HH:MM:SS`, from the tool call's real transcript timestamp. */
   time: string;
-  /** `true` for `Task` spawns — rendered with the dashed "spawn" treatment. */
+  /** `true` for `Agent` spawns — rendered with the dashed "spawn" treatment. */
   spawn: boolean;
 }
 
@@ -81,6 +90,16 @@ export interface SessionViewModel {
   /** `true` when `costUsd` is a pricing-table estimate (statusline wrap absent),
    *  `false` when it's the precise statusline-derived cost. */
   costEstimated: boolean;
+  /** Approximate token spend rate (tokens/min), or undefined when not yet
+   *  measurable / the session is idle. Rendered as `~NK/min`, else `—`. */
+  burnRatePerMin?: number;
+  /** The main session as the orchestration tree's synthetic root node (its own
+   *  model, main-only token spend, and recent activity). Present only when the
+   *  session has spawned sub-agents; `agents` nest one level beneath it. */
+  mainAgent?: AgentViewModel;
+  /** Sub-agent rows in pre-order tree layout (parent before its nested
+   *  children), each carrying its `depth` for indentation (0 = spawned by main;
+   *  rendered one level deeper when `mainAgent` is the visible root). */
   agents: AgentViewModel[];
   economics: EconomicsViewModel;
   /** Activity heartbeat: one agent-identity color index per recent tool call

@@ -155,6 +155,35 @@ This document provides a repeatable checklist for testing ClaudeVisual's live be
 
 ---
 
+## Sidebar Orchestration Webview (Phases 1–4)
+
+The sidebar is now a `WebviewView` (not the native TreeView the sections above
+describe). Verify these after `npm run reinstall` + reloading the window, with a
+live `claude` session in a tailed workspace folder:
+
+- **Vitals** — session name/id, live/working/idle dot, model chip, context ring
+  (`~%` when JSONL-approx, exact `%` when statusline wrapped), tokens, cost
+  (`~$` estimate vs precise), agent count.
+- **Burn-rate (Phase 4)** — vitals shows `~NK/min` tok/min while spending; `—`
+  before the second sample and once the session goes idle (never a stuck value).
+- **Agents tree (Phase 4)** — spawn a nested run (this repo's `planner` spawns
+  `researcher`s): confirm children render **indented under their parent** with
+  the elbow connector, matching the on-disk `subagents/` structure. A child seen
+  before its parent's Task line renders at root, then nests on the next tick (no
+  misparenting). Each row: identity color, type, status glyph, model chip, tokens,
+  spawn reason.
+- **Progress (Phase 4)** — a running agent shows an honest `N calls` chip (its
+  observed tool-call count), never a fabricated percentage.
+- **Drill-down** — clicking an agent row with activity expands its own tool calls
+  and files touched; open state survives re-renders.
+- **Economics** — total tokens, per-agent stacked bar, per-model rollup, cache
+  savings %.
+- **Heartbeat** — colored activity bars merging main + every sub-agent by real
+  transcript time (works without hooks); hidden when no calls yet.
+- **Feed + files** — recent tool calls (spawns dashed) and touched-files panel.
+- **Queued agents** — intentionally NOT shown (out-of-scope; only post-spawn data
+  is observed — see `plans/.../phase-04-nesting-extras.md`).
+
 ## Sign-Off
 
 Once all six criteria above have been manually verified in a live environment, mark the Phase 6 gate as **PASSED**.

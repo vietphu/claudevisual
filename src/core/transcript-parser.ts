@@ -1,4 +1,4 @@
-import { ParsedLine, ParsedLineType } from "./types";
+import { ParsedLine, ParsedLineType } from "./transcript-types";
 
 /**
  * Parses one raw JSONL line into a tolerant, loosely-typed record. Malformed
