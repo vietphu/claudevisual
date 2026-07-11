@@ -15,6 +15,7 @@ import {
 } from "./hooks/installer";
 import { DashboardPanel } from "./ui/webview/panel";
 import { StatusBar } from "./ui/status-bar";
+import { AdvisorNotifier } from "./ui/advisor-notifier";
 import { SidebarViewProvider } from "./ui/webview-view/sidebar-view-provider";
 
 export function activate(context: vscode.ExtensionContext): void {
@@ -22,6 +23,11 @@ export function activate(context: vscode.ExtensionContext): void {
 
   const statusBar = new StatusBar();
   context.subscriptions.push(statusBar);
+
+  // Persists across store rebuilds (workspace-folder changes) so its "already
+  // notified" dedupe state isn't lost mid-session.
+  const advisorNotifier = new AdvisorNotifier();
+  context.subscriptions.push(advisorNotifier);
 
   // Sidebar webview is registered exactly once (a view id can't be
   // re-registered); its backing store is swapped via `setStore` whenever
@@ -102,6 +108,7 @@ export function activate(context: vscode.ExtensionContext): void {
     activeDisposables.push(
       store.onDidChange((sessions) => {
         statusBar.render(sessions);
+        advisorNotifier.update(sessions);
         const currentSessionIds = new Set(sessions.map((s) => s.sessionId));
 
         // Lazily register each known session's narrow sub-agent watcher on

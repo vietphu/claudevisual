@@ -5,6 +5,7 @@ import { SessionStateStore } from "../../core/session-state-store";
 import { SessionState } from "../../core/types";
 import { HostToSidebarMessage, SidebarToHostMessage, SidebarViewModel } from "./sidebar-messages";
 import { toSidebarViewModel } from "./session-view-model";
+import { resolveAdvisorConfig } from "../../config/advisor-plan";
 
 /**
  * Sidebar `WebviewView` (replaces the former native TreeView). Registered once
@@ -64,7 +65,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.D
   }
 
   private update(sessions: readonly SessionState[]): void {
-    this.lastVm = toSidebarViewModel(sessions);
+    this.lastVm = toSidebarViewModel(sessions, resolveAdvisorConfig());
     this.post(this.lastVm);
   }
 

@@ -77,6 +77,14 @@ function reduceAssistant(state: SessionState, line: ParsedLine): SessionState {
 
   const { skillsInvoked, recentToolCalls } = reduceToolUseBlocks(state, message.content, lineTimestamp(line));
 
+  // Capture the turn's terminal stop_reason (a `max_tokens` stop = truncated
+  // output, an efficiency signal). `tool_use` is a mid-turn continuation, not a
+  // terminal state, so it never overwrites a real prior terminal reason.
+  const lastStopReason =
+    typeof message.stop_reason === "string" && message.stop_reason !== "tool_use"
+      ? message.stop_reason
+      : state.lastStopReason;
+
   return {
     ...state,
     model: message.model ?? state.model,
@@ -84,6 +92,7 @@ function reduceAssistant(state: SessionState, line: ParsedLine): SessionState {
     lastTurnContextTokens,
     skillsInvoked,
     recentToolCalls,
+    lastStopReason,
     lastUpdatedAt: Date.now(),
   };
 }
@@ -117,6 +126,7 @@ function reduceUser(state: SessionState, line: ParsedLine): SessionState {
     return {
       ...state,
       lastTurnContextTokens: Math.ceil(message.content.length / CHARS_PER_TOKEN_ESTIMATE),
+      compactionCount: state.compactionCount + 1,
       lastUpdatedAt: Date.now(),
     };
   }

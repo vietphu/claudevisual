@@ -103,6 +103,18 @@ export interface SessionState {
    * the newest sample is stale (session idle). Display-only.
    */
   burnRatePerMin: number | undefined;
+  /**
+   * Count of `/compact` summary lines seen this session — a context-thrash
+   * indicator (frequent compaction means the window keeps overflowing). Derived
+   * in the reducer from the same `isCompactSummary` signal that resets context.
+   */
+  compactionCount: number;
+  /**
+   * The most recent assistant turn's `stop_reason` (`"end_turn"`, `"max_tokens"`,
+   * `"tool_use"`, ...). A `"max_tokens"` stop means output was truncated — an
+   * efficiency signal. Undefined until the first terminal turn is seen.
+   */
+  lastStopReason: string | undefined;
 }
 
 export function emptySessionState(sessionId: string, cwd: string): SessionState {
@@ -128,6 +140,8 @@ export function emptySessionState(sessionId: string, cwd: string): SessionState 
     preciseCostUsd: undefined,
     preciseStatusLineUpdatedAt: undefined,
     burnRatePerMin: undefined,
+    compactionCount: 0,
+    lastStopReason: undefined,
   };
 }
 

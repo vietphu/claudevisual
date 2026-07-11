@@ -92,6 +92,38 @@ export interface FileViewModel {
   access: "edit" | "read";
 }
 
+/** One advisor recommendation as shown in the sidebar (flat mirror of the core
+ *  `Recommendation` — redefined here to keep this file core-import-free). */
+export interface AdvisorRecommendationViewModel {
+  id: string;
+  severity: "critical" | "warn" | "info";
+  category: "cost" | "context" | "cache" | "model" | "orchestration";
+  title: string;
+  detail?: string;
+  metric?: string;
+}
+
+/** One axis of the Efficiency Score. */
+export interface AdvisorDimensionViewModel {
+  key: string;
+  label: string;
+  score: number;
+}
+
+/** The Advisor section payload: composite score + ranked recommendations, plus a
+ *  plan-aware cost framing string (subscription proxy vs billed money). */
+export interface AdvisorViewModel {
+  score: number;
+  grade: string;
+  /** True when the session hasn't done enough to score — render muted. */
+  neutral: boolean;
+  dimensions: AdvisorDimensionViewModel[];
+  recommendations: AdvisorRecommendationViewModel[];
+  /** Preformatted cost figure (e.g. "≈ $1.20 est. API-equiv."), or undefined. */
+  costDisplay?: string;
+  costTooltip?: string;
+}
+
 /** Everything the sidebar renders for a single session. */
 export interface SessionViewModel {
   sessionId: string;
@@ -127,6 +159,8 @@ export interface SessionViewModel {
    *  rendered one level deeper when `mainAgent` is the visible root). */
   agents: AgentViewModel[];
   economics: EconomicsViewModel;
+  /** Efficiency Advisor: composite score + ranked cost/efficiency recommendations. */
+  advisor: AdvisorViewModel;
   /** Activity heartbeat: one bar per recent tool call across main + every
    *  sub-agent, ordered oldest → newest. Empty when the session has no
    *  recorded tool calls yet. */

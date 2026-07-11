@@ -31,6 +31,44 @@ export interface MetricsDiffMessage {
   points: ChartPoint[];
 }
 
+/** One advisor recommendation in the dashboard report (self-contained mirror of the
+ *  core `Recommendation`, so this browser-reachable file stays core-import-free). */
+export interface AdvisorReportRecommendation {
+  id: string;
+  severity: "critical" | "warn" | "info";
+  category: "cost" | "context" | "cache" | "model" | "orchestration";
+  title: string;
+  detail?: string;
+  metric?: string;
+}
+
+export interface AdvisorReportDimension {
+  key: string;
+  label: string;
+  score: number;
+}
+
+/** The retrospective Efficiency report for the primary (most-recently-updated)
+ *  session, pushed on every store change. */
+export interface AdvisorReport {
+  sessionId: string;
+  sessionLabel: string;
+  model?: string;
+  score: number;
+  grade: string;
+  neutral: boolean;
+  dimensions: AdvisorReportDimension[];
+  recommendations: AdvisorReportRecommendation[];
+  costDisplay?: string;
+  costTooltip?: string;
+}
+
+export interface AdvisorReportMessage {
+  type: "advisor-report";
+  /** null when there's no session to report on yet. */
+  report: AdvisorReport | null;
+}
+
 export interface WriteResultMessage {
   type: "write-result";
   fieldId: string;
@@ -48,7 +86,12 @@ export interface UndoResultMessage {
   error?: string;
 }
 
-export type HostToWebviewMessage = InitMessage | MetricsDiffMessage | WriteResultMessage | UndoResultMessage;
+export type HostToWebviewMessage =
+  | InitMessage
+  | MetricsDiffMessage
+  | AdvisorReportMessage
+  | WriteResultMessage
+  | UndoResultMessage;
 
 export interface ReadyMessage {
   type: "ready";

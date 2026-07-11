@@ -668,4 +668,36 @@ describe("state-reducer", () => {
       assert.equal(state.recentToolCalls[0].timestamp, Date.parse(iso));
     });
   });
+
+  describe("efficiency signals", () => {
+    it("captures a terminal stop_reason but ignores mid-turn tool_use", () => {
+      let state = emptySessionState("s1", "/p");
+      const assistant = (stop: string): ParsedLine => ({
+        type: "assistant",
+        sessionId: "s1",
+        raw: { type: "assistant", message: { model: "claude-sonnet-5", usage: { output_tokens: 1 }, stop_reason: stop } },
+      });
+      state = reduceSessionState(state, assistant("max_tokens"));
+      assert.equal(state.lastStopReason, "max_tokens");
+      // A subsequent mid-turn continuation must not overwrite the terminal reason.
+      state = reduceSessionState(state, assistant("tool_use"));
+      assert.equal(state.lastStopReason, "max_tokens");
+      state = reduceSessionState(state, assistant("end_turn"));
+      assert.equal(state.lastStopReason, "end_turn");
+    });
+
+    it("counts /compact summary lines", () => {
+      let state = emptySessionState("s1", "/p");
+      const compact: ParsedLine = {
+        type: "user",
+        sessionId: "s1",
+        raw: { type: "user", isCompactSummary: true, message: { content: "summary text" } },
+      };
+      assert.equal(state.compactionCount, 0);
+      state = reduceSessionState(state, compact);
+      assert.equal(state.compactionCount, 1);
+      state = reduceSessionState(state, compact);
+      assert.equal(state.compactionCount, 2);
+    });
+  });
 });

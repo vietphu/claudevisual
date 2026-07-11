@@ -57,6 +57,22 @@
           "type": "boolean",
           "default": false,
           "description": "Log verbose ClaudeVisual diagnostics to the ClaudeVisual output channel."
+        },
+        "claudevisual.advisor.plan": {
+          "type": "string",
+          "enum": ["max", "pro", "api"],
+          "default": "max",
+          "enumDescriptions": [
+            "Max subscription — the USD figure is an API-equivalent consumption proxy, not billed money.",
+            "Pro subscription — same flat-fee framing as Max.",
+            "API/pay-as-you-go — the USD figure is real billed spend."
+          ],
+          "markdownDescription": "Your Claude Code billing plan. On a flat-fee subscription (Max/Pro) the Efficiency Advisor frames cost as a usage-budget consumption proxy rather than out-of-pocket money."
+        },
+        "claudevisual.advisor.notifyCritical": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a VS Code notification when a session hits a critical efficiency condition (e.g. context almost full). Fires once per condition, not per update."
         }
       }
     },

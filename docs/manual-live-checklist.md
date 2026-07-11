@@ -184,6 +184,27 @@ live `claude` session in a tailed workspace folder:
 - **Queued agents** — intentionally NOT shown (out-of-scope; only post-spawn data
   is observed — see `plans/.../phase-04-nesting-extras.md`).
 
+## Efficiency Advisor
+
+Verify after `npm run reinstall` + window reload, with a live `claude` session:
+
+- **Sidebar Advisor section** — appears once the session has real spend: a grade
+  (A–F) + score meter, per-dimension bars (context / cache / model / orchestration),
+  and any recommendation rows (severity dot + category + title + metric). Hidden on a
+  brand-new session with nothing to say.
+- **Cost framing (plan-aware)** — with `claudevisual.advisor.plan` = `max` (default),
+  the cost reads `≈ $X … API-equiv.` with a tooltip explaining it's a usage-budget
+  proxy, not billed money. Switch the setting to `api` and confirm it reads plain `$X`.
+- **Dashboard Advisor** — `ClaudeVisual: Open Dashboard`: the Efficiency Advisor block
+  at the top shows the same grade/score/dimensions/recommendations for the primary
+  session, updating live as the session works.
+- **Status bar** — trailing `$(lightbulb) <grade>` normally; on a critical condition
+  (drive context past 90%) it flips to `$(warning) <metric>` with a warning background.
+  Clicking the item opens the dashboard.
+- **Critical notification** — with `claudevisual.advisor.notifyCritical` = true, crossing
+  into a critical condition (e.g. context ≥ 90%) toasts **once** (not per tick); it does
+  not re-fire until the condition clears and recurs. Setting it false suppresses toasts.
+
 ## Sign-Off
 
 Once all six criteria above have been manually verified in a live environment, mark the Phase 6 gate as **PASSED**.

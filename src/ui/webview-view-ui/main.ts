@@ -6,6 +6,7 @@ import type { SessionViewModel, SidebarViewModel } from "../webview-view/sidebar
 import { esc } from "./dom-utils";
 import { onHostMessage, postToHost } from "./sidebar-vscode-api";
 import { renderActivity } from "./render-activity";
+import { renderAdvisor } from "./render-advisor";
 import { renderAgents } from "./render-agents";
 import { renderEconomics } from "./render-economics";
 import { renderVitals } from "./render-vitals";
@@ -36,7 +37,7 @@ function renderSession(s: SessionViewModel): string {
   return `<section class="cv-session${collapsed ? " collapsed" : ""}" data-session="${esc(s.sessionId)}">${renderVitals(
     s,
     !collapsed
-  )}<div class="cv-body">${renderAgents(s)}${renderEconomics(s)}${renderActivity(s)}</div></section>`;
+  )}<div class="cv-body">${renderAdvisor(s)}${renderAgents(s)}${renderEconomics(s)}${renderActivity(s)}</div></section>`;
 }
 
 function render(root: HTMLElement, vm: SidebarViewModel): void {
