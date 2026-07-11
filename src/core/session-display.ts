@@ -47,14 +47,29 @@ export function sumUsage(state: SessionState): number {
  * betas can push it well past the 200k/1M defaults below) and guessing wrong
  * either overstates or understates the percentage.
  */
-export function resolveContextPercent(state: SessionState): { percent: number; precise: boolean } {
-  if (state.preciseContextPercent !== undefined) {
-    return { percent: Math.round(state.preciseContextPercent), precise: true };
-  }
+export function resolveContextPercent(
+  state: SessionState
+): { percent: number; precise: boolean; usedTokens: number; windowTokens: number } {
   const windowSize =
     state.preciseContextWindowSize ??
     (state.model ? MODEL_CONTEXT_WINDOW_SIZE[state.model] ?? DEFAULT_CONTEXT_WINDOW_SIZE : DEFAULT_CONTEXT_WINDOW_SIZE);
-  return { percent: Math.min(100, Math.round((state.lastTurnContextTokens / windowSize) * 100)), precise: false };
+  if (state.preciseContextPercent !== undefined) {
+    return {
+      percent: Math.round(state.preciseContextPercent),
+      precise: true,
+      // `preciseContextUsedTokens` (statusline's `total_input_tokens`) is the exact
+      // numerator; reconstructing from the rounded percent is only a fallback for
+      // older cache payloads that predate that field.
+      usedTokens: state.preciseContextUsedTokens ?? Math.round((state.preciseContextPercent / 100) * windowSize),
+      windowTokens: windowSize,
+    };
+  }
+  return {
+    percent: Math.min(100, Math.round((state.lastTurnContextTokens / windowSize) * 100)),
+    precise: false,
+    usedTokens: state.lastTurnContextTokens,
+    windowTokens: windowSize,
+  };
 }
 
 /** Compact human token count: `29.6M`, `84.0k`, `512`. */

@@ -30,6 +30,9 @@ export interface StatuslineCacheRecord {
    *  `context_window.context_window_size` — varies per session (e.g. extended-context
    *  betas), so it must be read from this payload rather than guessed per model name. */
   contextWindowSize: number | undefined;
+  /** Current context occupancy (tokens) from `context_window.total_input_tokens` —
+   *  the exact numerator behind `used_percentage`, used for absolute-token display. */
+  contextUsedTokens: number | undefined;
 }
 
 /** Hook events that mean "Claude is actively working" on this session. */
@@ -110,8 +113,12 @@ export function parseStatuslineCache(raw: string): StatuslineCacheRecord | undef
       typeof contextWindow?.["context_window_size"] === "number"
         ? (contextWindow["context_window_size"] as number)
         : undefined;
+    const contextUsedTokens =
+      typeof contextWindow?.["total_input_tokens"] === "number"
+        ? (contextWindow["total_input_tokens"] as number)
+        : undefined;
 
-    return { sessionId, ts: Date.now(), contextUsedPercent, costUsd, contextWindowSize };
+    return { sessionId, ts: Date.now(), contextUsedPercent, costUsd, contextWindowSize, contextUsedTokens };
   } catch {
     return undefined;
   }

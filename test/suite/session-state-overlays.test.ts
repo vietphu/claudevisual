@@ -32,22 +32,30 @@ describe("session-state-overlays", () => {
         contextUsedPercent: 42,
         costUsd: 1.5,
         contextWindowSize: 967_000,
+        contextUsedTokens: 406_140,
       });
       assert.equal(state.preciseContextPercent, 42);
       assert.equal(state.preciseCostUsd, 1.5);
       assert.equal(state.preciseContextWindowSize, 967_000);
+      assert.equal(state.preciseContextUsedTokens, 406_140);
     });
 
-    it("keeps a previously learned window size when a later tick omits it", () => {
-      const previous = { ...emptySessionState("s1", "/p"), preciseContextWindowSize: 967_000 };
+    it("keeps a previously learned window size and used-tokens when a later tick omits them", () => {
+      const previous = {
+        ...emptySessionState("s1", "/p"),
+        preciseContextWindowSize: 967_000,
+        preciseContextUsedTokens: 406_140,
+      };
       const state = applyStatuslineOverlay(previous, {
         sessionId: "s1",
         ts: 200,
         contextUsedPercent: 50,
         costUsd: undefined,
         contextWindowSize: undefined,
+        contextUsedTokens: undefined,
       });
       assert.equal(state.preciseContextWindowSize, 967_000);
+      assert.equal(state.preciseContextUsedTokens, 406_140);
     });
   });
 

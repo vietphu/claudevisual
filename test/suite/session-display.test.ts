@@ -4,10 +4,23 @@ import { emptySessionState } from "../../src/core/types";
 
 describe("session-display", () => {
   describe("resolveContextPercent", () => {
-    it("uses the statusline's precise percent when present, marked precise", () => {
+    it("uses the statusline's precise used-tokens/window/percent verbatim when present", () => {
+      // Real payload shape (`context_window.total_input_tokens`/`context_window_size`/
+      // `used_percentage`), from an actual terminal statusline tick.
+      const state = {
+        ...emptySessionState("s1", "/p"),
+        preciseContextPercent: 20,
+        preciseContextWindowSize: 200_000,
+        preciseContextUsedTokens: 40_955,
+      };
+      const result = resolveContextPercent(state);
+      assert.deepEqual(result, { percent: 20, precise: true, usedTokens: 40_955, windowTokens: 200_000 });
+    });
+
+    it("reconstructs used-tokens from the rounded percent when the cache payload predates total_input_tokens", () => {
       const state = { ...emptySessionState("s1", "/p"), preciseContextPercent: 9 };
       const result = resolveContextPercent(state);
-      assert.deepEqual(result, { percent: 9, precise: true });
+      assert.deepEqual(result, { percent: 9, precise: true, usedTokens: 18_000, windowTokens: 200_000 });
     });
 
     it("falls back to the model's published 1M window for current-generation models", () => {
@@ -17,13 +30,13 @@ describe("session-display", () => {
       // the native popup reported, instead of the old flat-200k ~78%/~94%.
       const state = { ...emptySessionState("s1", "/p"), model: "claude-sonnet-5", lastTurnContextTokens: 155_300 };
       const result = resolveContextPercent(state);
-      assert.deepEqual(result, { percent: 16, precise: false });
+      assert.deepEqual(result, { percent: 16, precise: false, usedTokens: 155_300, windowTokens: 1_000_000 });
     });
 
     it("falls back to the hardcoded 200k default for a model absent from the table", () => {
       const state = { ...emptySessionState("s1", "/p"), model: "claude-legacy-mystery", lastTurnContextTokens: 82_000 };
       const result = resolveContextPercent(state);
-      assert.deepEqual(result, { percent: 41, precise: false });
+      assert.deepEqual(result, { percent: 41, precise: false, usedTokens: 82_000, windowTokens: 200_000 });
     });
 
     it("prefers a previously learned real window size over the model table", () => {
@@ -37,7 +50,7 @@ describe("session-display", () => {
         preciseContextWindowSize: 200_000,
       };
       const result = resolveContextPercent(state);
-      assert.deepEqual(result, { percent: 20, precise: false });
+      assert.deepEqual(result, { percent: 20, precise: false, usedTokens: 40_955, windowTokens: 200_000 });
     });
 
     it("still caps at 100% when the last turn genuinely exceeds the known window", () => {
@@ -47,7 +60,7 @@ describe("session-display", () => {
         preciseContextWindowSize: 967_000,
       };
       const result = resolveContextPercent(state);
-      assert.deepEqual(result, { percent: 100, precise: false });
+      assert.deepEqual(result, { percent: 100, precise: false, usedTokens: 1_200_000, windowTokens: 967_000 });
     });
   });
 });

@@ -81,6 +81,12 @@ export interface SessionState {
    * turns where `preciseContextPercent` itself is momentarily unavailable.
    */
   preciseContextWindowSize: number | undefined;
+  /** Precise current context occupancy (tokens) from the statusLine payload's
+   *  `context_window.total_input_tokens` — the exact numerator the native
+   *  "Context usage" popup shows (e.g. `93.9k` of `967.0k`), present only when
+   *  the wrap is installed. Preferred over reconstructing tokens from the
+   *  rounded `preciseContextPercent` for display. */
+  preciseContextUsedTokens: number | undefined;
   /** Precise total session cost (USD) from the statusLine payload's `cost.total_cost_usd`. */
   preciseCostUsd: number | undefined;
   /** Timestamp (ms) `preciseContextPercent`/`preciseCostUsd` were last updated. */
@@ -112,6 +118,7 @@ export function emptySessionState(sessionId: string, cwd: string): SessionState 
     lastHookEventAt: undefined,
     preciseContextPercent: undefined,
     preciseContextWindowSize: undefined,
+    preciseContextUsedTokens: undefined,
     preciseCostUsd: undefined,
     preciseStatusLineUpdatedAt: undefined,
     burnRatePerMin: undefined,
