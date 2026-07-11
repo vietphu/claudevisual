@@ -36,9 +36,13 @@ describe("session-view-model: agent tree, drill-down, heartbeat", () => {
 
     // heartbeat: merged + ordered by real ts (100 main, 200 agent, 300 main)
     assert.equal(vm.heartbeat.length, 3);
-    assert.equal(vm.heartbeat[0], 0); // main identity color = index 0
-    assert.notEqual(vm.heartbeat[1], 0); // sub-agent color != main
-    assert.equal(vm.heartbeat[2], 0);
+    assert.equal(vm.heartbeat[0].colorIndex, 0); // main identity color = index 0
+    assert.equal(vm.heartbeat[0].label, "main");
+    assert.equal(vm.heartbeat[0].tool, "Bash");
+    assert.notEqual(vm.heartbeat[1].colorIndex, 0); // sub-agent color != main
+    assert.equal(vm.heartbeat[1].label, "researcher");
+    assert.equal(vm.heartbeat[1].tool, "Read");
+    assert.equal(vm.heartbeat[2].colorIndex, 0);
   });
 
   it("has an empty heartbeat when the session has no tool calls", () => {

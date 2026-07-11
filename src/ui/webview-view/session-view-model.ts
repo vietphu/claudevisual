@@ -23,7 +23,7 @@ export function toSidebarViewModel(sessions: readonly SessionState[]): SidebarVi
 }
 
 function toSessionViewModel(state: SessionState): SessionViewModel {
-  const { percent, precise } = resolveContextPercent(state);
+  const { percent, precise, usedTokens, windowTokens } = resolveContextPercent(state);
   const calls = state.recentToolCalls.slice().reverse(); // most-recent first
   const economics = toEconomics(state);
   const { costUsd, costEstimated } = resolveCost(state, economics);
@@ -36,6 +36,8 @@ function toSessionViewModel(state: SessionState): SessionViewModel {
     live: state.isLive,
     contextPercent: percent,
     contextPrecise: precise,
+    contextUsedTokens: usedTokens,
+    contextWindowTokens: windowTokens,
     totalTokens: sumUsage(state),
     costUsd,
     costEstimated,

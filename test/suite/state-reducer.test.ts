@@ -120,6 +120,49 @@ describe("state-reducer", () => {
       assert.equal(state.lastTurnContextTokens, 235);
     });
 
+    it("estimates context occupancy from a /compact summary line immediately, without waiting for a new assistant turn", () => {
+      // Real case: `/compact` never calls the model, so the transcript's next
+      // line is a plain-string `user` message flagged `isCompactSummary: true`
+      // with no `usage` field — nothing for the normal assistant-turn path to
+      // react to. Without this, %CONTEXT keeps showing the stale pre-compact
+      // snapshot until the user's next prompt produces a real assistant turn.
+      let state = emptySessionState("session-1", "/Users/test/project");
+      state = { ...state, lastTurnContextTokens: 850_000 }; // stale pre-compact snapshot
+
+      const summaryText = "x".repeat(4000); // ~1000 tokens at 4 chars/token
+      const line: ParsedLine = {
+        type: "user",
+        sessionId: "session-1",
+        cwd: "/Users/test/project",
+        raw: {
+          type: "user",
+          isCompactSummary: true,
+          message: { content: summaryText },
+        },
+      };
+
+      const result = reduceSessionState(state, line);
+      assert.equal(result.lastTurnContextTokens, 1000);
+    });
+
+    it("leaves lastTurnContextTokens untouched for a normal user line (no isCompactSummary flag)", () => {
+      let state = emptySessionState("session-1", "/Users/test/project");
+      state = { ...state, lastTurnContextTokens: 42_000 };
+
+      const line: ParsedLine = {
+        type: "user",
+        sessionId: "session-1",
+        cwd: "/Users/test/project",
+        raw: {
+          type: "user",
+          message: { content: "just a regular follow-up prompt" },
+        },
+      };
+
+      const result = reduceSessionState(state, line);
+      assert.equal(result.lastTurnContextTokens, 42_000);
+    });
+
     it("should handle mode line and update permissionMode", () => {
       const state = emptySessionState("session-1", "/Users/test/project");
       const line: ParsedLine = {
@@ -245,6 +288,32 @@ describe("state-reducer", () => {
 
       const result = reduceSessionState(state, line);
       assert.deepEqual(result, state, "Unknown types should be no-ops");
+    });
+
+    it("backfills cwd from a later line once, when the session was created without one", () => {
+      const state = emptySessionState("session-1", "");
+      const line: ParsedLine = {
+        type: "unknown-future-type",
+        sessionId: "session-1",
+        cwd: "/Users/test/project",
+        raw: { type: "unknown-future-type" },
+      };
+
+      const result = reduceSessionState(state, line);
+      assert.equal(result.cwd, "/Users/test/project");
+    });
+
+    it("never overwrites an already-known cwd with a later line's value", () => {
+      const state = emptySessionState("session-1", "/Users/test/project");
+      const line: ParsedLine = {
+        type: "unknown-future-type",
+        sessionId: "session-1",
+        cwd: "/Users/test/other-project",
+        raw: { type: "unknown-future-type" },
+      };
+
+      const result = reduceSessionState(state, line);
+      assert.equal(result.cwd, "/Users/test/project");
     });
 
     it("should handle assistant line without message field", () => {

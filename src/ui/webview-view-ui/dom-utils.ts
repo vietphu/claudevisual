@@ -13,6 +13,14 @@ export function esc(value: string | undefined): string {
     .replace(/'/g, "&#39;");
 }
 
+const usdFormatter = new Intl.NumberFormat(undefined, { style: "currency", currency: "USD" });
+
+/** Locale-aware USD string (thousands separators included) — never hand-roll
+ *  `$` + `toFixed(2)`, which silently drops grouping on larger costs. */
+export function formatUsd(n: number): string {
+  return usdFormatter.format(n);
+}
+
 /** Compact token count for display: `29.6M`, `84.0k`, `512`. Mirrors the
  *  host-side `formatTokenCount` (kept here so the browser bundle needs no
  *  core import at runtime). */

@@ -32,7 +32,9 @@ function categorize(name: string): ToolCategory {
   return "other";
 }
 
-function formatClock(ms: number): string {
+/** Local `HH:MM:SS` from a transcript timestamp — shared by the feed and the
+ *  Activity heartbeat's hover tooltip so both read the same clock format. */
+export function formatClock(ms: number): string {
   if (!ms || ms <= 0) {
     return "";
   }

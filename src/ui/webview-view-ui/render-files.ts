@@ -1,9 +1,10 @@
 import type { FileViewModel, SessionViewModel } from "../webview-view/sidebar-messages";
 import { esc } from "./dom-utils";
 
-/** Files-touched panel, grouped by directory. Each row shows the basename and
- *  an edit/read access tag. */
-export function renderFiles(s: SessionViewModel): string {
+/** Files-touched list body — no section wrapper, nested inside the merged
+ *  Activity section's expandable detail panel (see `render-activity.ts`).
+ *  Grouped by directory; each row shows the basename and an edit/read tag. */
+export function renderFilesBody(s: SessionViewModel): string {
   if (s.files.length === 0) {
     return "";
   }
@@ -12,11 +13,7 @@ export function renderFiles(s: SessionViewModel): string {
     .map((dir) => renderGroup(dir, groups[dir]))
     .join("");
 
-  return `
-  <div class="section">
-    <div class="lbl">Files touched <span class="line"></span><span class="count">${s.files.length}</span></div>
-    <div class="files">${body}</div>
-  </div>`;
+  return `<div class="files">${body}</div>`;
 }
 
 function renderGroup(dir: string, files: FileViewModel[]): string {

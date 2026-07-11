@@ -24,16 +24,32 @@ interface ToolResultBlock {
  * total — summing all iterations would double-count real usage.
  */
 export function reduceSessionState(state: SessionState, line: ParsedLine): SessionState {
+  const withCwd = backfillCwd(state, line);
   switch (line.type) {
     case "assistant":
-      return reduceAssistant(state, line);
+      return reduceAssistant(withCwd, line);
     case "user":
-      return reduceUser(state, line);
+      return reduceUser(withCwd, line);
     case "mode":
-      return reduceMode(state, line);
+      return reduceMode(withCwd, line);
     default:
-      return state;
+      return withCwd;
   }
+}
+
+/**
+ * Backfills `state.cwd` from any line that carries one, once — needed because
+ * a tailer's first-ever touch of a session's transcript is a tail-window read
+ * (never a from-byte-0 replay, see `jsonl-tailer.ts`), so the very first
+ * complete line it parses can easily be one that omits `cwd`. Left at `""`,
+ * `normalizeCwd("")` in `extension.ts` never matches a workspace folder, so
+ * the sub-agent watcher for that session is silently never registered.
+ */
+function backfillCwd(state: SessionState, line: ParsedLine): SessionState {
+  if (state.cwd !== "" || !line.cwd) {
+    return state;
+  }
+  return { ...state, cwd: line.cwd };
 }
 
 function reduceAssistant(state: SessionState, line: ParsedLine): SessionState {
@@ -70,6 +86,10 @@ function reduceAssistant(state: SessionState, line: ParsedLine): SessionState {
   };
 }
 
+/** Rough chars-per-token ratio for estimating tokens from raw text when no
+ *  API usage figure is available yet (English/code-leaning transcripts). */
+const CHARS_PER_TOKEN_ESTIMATE = 4;
+
 /**
  * Marks a sub-agent as completed once its spawning `Agent` tool call's result
  * comes back on the parent transcript, per the standard Anthropic `tool_result`
@@ -77,10 +97,29 @@ function reduceAssistant(state: SessionState, line: ParsedLine): SessionState {
  * `toolUseId` (from the agent's own meta sidecar, see `applySubagentMetaOverlay`),
  * NOT by map key — the map is keyed by the transcript-filename agentId, which is
  * a different string from the spawning tool_use's id.
+ *
+ * Also detects `/compact`'s synthetic summary line (`isCompactSummary: true`,
+ * plain-string `message.content`). `/compact` never calls the model, so there's
+ * no fresh `usage` figure to react to — without this, %CONTEXT would keep
+ * showing the pre-compaction snapshot until the next real assistant turn. We
+ * estimate the new occupancy from the summary text length so the display drops
+ * immediately; the next assistant turn's real `usage` overwrites this estimate.
  */
 function reduceUser(state: SessionState, line: ParsedLine): SessionState {
   const message = line.raw.message as UserMessage | undefined;
-  if (!message || !Array.isArray(message.content)) {
+  if (!message) {
+    return state;
+  }
+
+  if (line.raw.isCompactSummary === true && typeof message.content === "string") {
+    return {
+      ...state,
+      lastTurnContextTokens: Math.ceil(message.content.length / CHARS_PER_TOKEN_ESTIMATE),
+      lastUpdatedAt: Date.now(),
+    };
+  }
+
+  if (!Array.isArray(message.content)) {
     return state;
   }
 

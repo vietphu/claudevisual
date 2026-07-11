@@ -56,6 +56,23 @@ export interface EconomicsViewModel {
   byModel: EconomicsModelSlice[];
 }
 
+/** One bar in the Activity heartbeat chart. `colorIndex` drives its color
+ *  (agent identity, matching the Orchestration tree); the rest is the
+ *  hover-tooltip content — otherwise the chart would carry no information
+ *  beyond "something happened, in this color". */
+export interface HeartbeatSample {
+  colorIndex: number;
+  /** Agent identity label: "main", or the sub-agent's type. */
+  label: string;
+  tool: string;
+  /** Raw epoch ms — drives the bar's real proportional position on the
+   *  Activity timeline (a lull in activity reads as literal empty space,
+   *  not just "the next dash in sequence"). */
+  ts: number;
+  /** Local `HH:MM:SS`, from the tool call's real transcript timestamp. */
+  time: string;
+}
+
 /** One entry in the recent-activity feed. */
 export interface FeedItemViewModel {
   name: string;
@@ -85,6 +102,11 @@ export interface SessionViewModel {
   live: boolean;
   contextPercent: number;
   contextPrecise: boolean;
+  /** Current context occupancy (tokens) — the exact numerator when `contextPrecise`
+   *  is true, else the JSONL-derived `lastTurnContextTokens` approximation. */
+  contextUsedTokens: number;
+  /** The denominator `contextPercent` was computed against (tokens). */
+  contextWindowTokens: number;
   totalTokens: number;
   costUsd?: number;
   /** `true` when `costUsd` is a pricing-table estimate (statusline wrap absent),
@@ -102,10 +124,10 @@ export interface SessionViewModel {
    *  rendered one level deeper when `mainAgent` is the visible root). */
   agents: AgentViewModel[];
   economics: EconomicsViewModel;
-  /** Activity heartbeat: one agent-identity color index per recent tool call
-   *  across main + every sub-agent, ordered oldest → newest. Empty when the
-   *  session has no recorded tool calls yet. */
-  heartbeat: number[];
+  /** Activity heartbeat: one bar per recent tool call across main + every
+   *  sub-agent, ordered oldest → newest. Empty when the session has no
+   *  recorded tool calls yet. */
+  heartbeat: HeartbeatSample[];
   feed: FeedItemViewModel[];
   files: FileViewModel[];
 }

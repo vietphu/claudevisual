@@ -41,7 +41,13 @@ function renderAgent(a: AgentViewModel, depthOffset: number): string {
   const glyph = a.status === "running" ? "▶" : "✓";
   const reason = a.spawnReason ? `<div class="areason" title="${esc(a.spawnReason)}">${esc(a.spawnReason)}</div>` : "";
   const hasDetail = a.detail.calls.length > 0 || a.detail.files.length > 0;
-  const caret = hasDetail ? `<span class="caret">›</span>` : `<span class="caret hidden"></span>`;
+  const caret = hasDetail
+    ? `<span class="caret" aria-hidden="true">›</span>`
+    : `<span class="caret hidden" aria-hidden="true"></span>`;
+  // Only a row with drill-down content is a real toggle control — give it
+  // button semantics + keyboard focus; a row with nothing to expand stays
+  // inert (no tabindex to trap Tab order on a dead end).
+  const interactiveAttrs = hasDetail ? ` role="button" tabindex="0" aria-expanded="false"` : "";
   // Running agents show an honest activity proxy (raw call count, not a
   // fabricated %); completed agents show how long their activity spanned.
   const meta =
@@ -57,10 +63,10 @@ function renderAgent(a: AgentViewModel, depthOffset: number): string {
   <div class="agent${hasDetail ? " has-detail" : ""}${depth > 0 ? " nested" : ""}" data-agent="${esc(
     a.agentId
   )}" style="--depth:${depth}">
-    <div class="agent-row" data-status="${a.status}" style="--ac:var(--a${a.colorIndex})">
+    <div class="agent-row" data-status="${a.status}" style="--ac:var(--a${a.colorIndex})"${interactiveAttrs}>
       ${caret}
-      <span class="st">${glyph}</span>
-      <span class="adot"></span>
+      <span class="st" aria-label="${a.status}">${glyph}</span>
+      <span class="adot" aria-hidden="true"></span>
       <div class="abody">
         <div class="atop">
           <span class="aname" title="${esc(a.type)}">${esc(a.type)}</span>

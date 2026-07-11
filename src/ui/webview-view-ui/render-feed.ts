@@ -11,17 +11,15 @@ const CATEGORY_ICON: Record<ToolCategory, string> = {
   other: "•",
 };
 
-/** Recent-activity feed: color-coded, most-recent first, with spawn events
- *  (`Agent`) given a distinct dashed treatment. */
-export function renderFeed(s: SessionViewModel): string {
+/** Recent-activity list body — no section wrapper, nested inside the merged
+ *  Activity section's expandable detail panel (see `render-activity.ts`).
+ *  Color-coded, most-recent first, with spawn events (`Agent`) given a
+ *  distinct dashed treatment. */
+export function renderFeedBody(s: SessionViewModel): string {
   if (s.feed.length === 0) {
     return "";
   }
-  return `
-  <div class="section">
-    <div class="lbl">Recent activity <span class="line"></span><span class="count">${s.feed.length}</span></div>
-    <div class="feed">${s.feed.map(renderFeedItem).join("")}</div>
-  </div>`;
+  return `<div class="feed">${s.feed.map(renderFeedItem).join("")}</div>`;
 }
 
 function renderFeedItem(item: FeedItemViewModel): string {

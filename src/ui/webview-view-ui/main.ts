@@ -4,11 +4,9 @@
 // pushes on every store change.
 import type { SessionViewModel, SidebarViewModel } from "../webview-view/sidebar-messages";
 import { onHostMessage, postToHost } from "./sidebar-vscode-api";
+import { renderActivity } from "./render-activity";
 import { renderAgents } from "./render-agents";
 import { renderEconomics } from "./render-economics";
-import { renderFeed } from "./render-feed";
-import { renderFiles } from "./render-files";
-import { renderHeartbeat } from "./render-heartbeat";
 import { renderVitals } from "./render-vitals";
 
 const IDLE_HTML = `<div class="cv-idle">No active Claude Code session in this workspace.</div>`;
@@ -17,17 +15,21 @@ const IDLE_HTML = `<div class="cv-idle">No active Claude Code session in this wo
 // re-renders on every store change; without this, an expanded agent would
 // collapse each tick).
 const openAgents = new Set<string>();
+// Same idea for the merged Activity section's detail panel, keyed by
+// sessionId (one Activity section per session) — collapsed by default, so a
+// sessionId only ever appears here once the user has explicitly opened it.
+const openActivity = new Set<string>();
 
 function renderSession(s: SessionViewModel): string {
-  return `<section class="cv-session">${renderVitals(s)}${renderAgents(s)}${renderEconomics(s)}${renderHeartbeat(
+  return `<section class="cv-session">${renderVitals(s)}${renderAgents(s)}${renderEconomics(s)}${renderActivity(
     s
-  )}${renderFeed(s)}${renderFiles(s)}</section>`;
+  )}</section>`;
 }
 
 function render(root: HTMLElement, vm: SidebarViewModel): void {
   root.innerHTML = vm.sessions.length === 0 ? IDLE_HTML : vm.sessions.map(renderSession).join("");
-  // Prune remembered expansions for agents that are no longer present, then
-  // re-apply the open class to those that are (innerHTML wiped it).
+  // Prune remembered expansions for agents/sessions that are no longer
+  // present, then re-apply the open state to those that are (innerHTML wiped it).
   const present = new Set<string>();
   for (const s of vm.sessions) {
     if (s.mainAgent) {
@@ -42,8 +44,66 @@ function render(root: HTMLElement, vm: SidebarViewModel): void {
       openAgents.delete(id);
       continue;
     }
-    root.querySelector(`.agent[data-agent="${CSS.escape(id)}"]`)?.classList.add("open");
+    const agent = root.querySelector(`.agent[data-agent="${CSS.escape(id)}"]`);
+    agent?.classList.add("open");
+    agent?.querySelector(".agent-row")?.setAttribute("aria-expanded", "true");
   }
+
+  const sessionIds = new Set(vm.sessions.map((s) => s.sessionId));
+  for (const id of [...openActivity]) {
+    if (!sessionIds.has(id)) {
+      openActivity.delete(id);
+      continue;
+    }
+    const activity = root.querySelector(`.activity[data-session="${CSS.escape(id)}"]`);
+    activity?.classList.add("open");
+    activity?.querySelector(".act-toggle")?.setAttribute("aria-expanded", "true");
+  }
+}
+
+/** Flips one agent row's drill-down open/closed, from either a click or a
+ *  keyboard activation — shared so both input paths stay in sync with
+ *  `openAgents` and the row's `aria-expanded` state. No-op on a row with
+ *  nothing to expand (no `has-detail` class, so no `role="button"` either). */
+function toggleAgentRow(row: HTMLElement): void {
+  const agent = row.parentElement;
+  if (!agent || !agent.classList.contains("has-detail")) {
+    return;
+  }
+  const id = agent.getAttribute("data-agent");
+  if (!id) {
+    return;
+  }
+  const nowOpen = !openAgents.has(id);
+  if (nowOpen) {
+    openAgents.add(id);
+  } else {
+    openAgents.delete(id);
+  }
+  agent.classList.toggle("open", nowOpen);
+  row.setAttribute("aria-expanded", String(nowOpen));
+}
+
+/** Flips the merged Activity section's detail panel (Recent activity + Files
+ *  touched) open/closed, mirroring `toggleAgentRow` — same shared-click/keydown
+ *  pattern, own `openActivity` set keyed by sessionId instead of agentId. */
+function toggleActivity(header: HTMLElement): void {
+  const section = header.closest(".activity");
+  if (!section || !section.classList.contains("has-detail")) {
+    return;
+  }
+  const id = section.getAttribute("data-session");
+  if (!id) {
+    return;
+  }
+  const nowOpen = !openActivity.has(id);
+  if (nowOpen) {
+    openActivity.add(id);
+  } else {
+    openActivity.delete(id);
+  }
+  section.classList.toggle("open", nowOpen);
+  header.setAttribute("aria-expanded", String(nowOpen));
 }
 
 function mount(): void {
@@ -56,24 +116,38 @@ function mount(): void {
       render(root, message.vm);
     }
   });
-  // Delegated agent drill-down toggle — clicking an agent row flips its panel
-  // and remembers the choice so the next state push keeps it open.
+  // Delegated toggles — clicking (or pressing Enter/Space on, for keyboard
+  // users tabbing through `role="button"` elements) an agent row or the
+  // Activity header flips its panel and remembers the choice so the next
+  // state push keeps it open.
   root.addEventListener("click", (event) => {
-    const row = (event.target as HTMLElement).closest(".agent-row");
-    const agent = row?.parentElement;
-    if (!agent || !agent.classList.contains("has-detail")) {
+    const target = event.target as HTMLElement;
+    const row = target.closest(".agent-row");
+    if (row) {
+      toggleAgentRow(row as HTMLElement);
       return;
     }
-    const id = agent.getAttribute("data-agent");
-    if (!id) {
+    const header = target.closest(".act-toggle");
+    if (header) {
+      toggleActivity(header as HTMLElement);
+    }
+  });
+  root.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") {
       return;
     }
-    if (openAgents.has(id)) {
-      openAgents.delete(id);
-    } else {
-      openAgents.add(id);
+    const target = event.target as HTMLElement;
+    const row = target.closest(".agent-row");
+    if (row) {
+      event.preventDefault(); // stop Space from scrolling the sidebar
+      toggleAgentRow(row as HTMLElement);
+      return;
     }
-    agent.classList.toggle("open");
+    const header = target.closest(".act-toggle");
+    if (header) {
+      event.preventDefault();
+      toggleActivity(header as HTMLElement);
+    }
   });
   // Tell the host we're mounted so it replays the latest state (the first
   // store change may have fired before this webview existed).
