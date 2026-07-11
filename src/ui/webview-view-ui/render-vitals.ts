@@ -1,5 +1,6 @@
 import type { SessionViewModel } from "../webview-view/sidebar-messages";
 import { esc, formatTokens, formatUsd, modelChip } from "./dom-utils";
+import { gradeSeverity } from "./render-advisor";
 
 /** Severity band driving the meter's fill/text color — good < 75 <= warn < 90 <= crit. */
 function severityClass(percent: number): "good" | "warn" | "crit" {
@@ -12,14 +13,30 @@ function severityClass(percent: number): "good" | "warn" | "crit" {
   return "good";
 }
 
-/** Vitals header: live pulse, session name + id, model chip, a full-width context
- *  meter (used/window tokens + %), and a single-row stat strip (tokens, cost, agents,
- *  burn rate). A horizontal meter reads the absolute + relative numbers in one line,
- *  where the previous ring could only fit the percent and needed a separate line below it.
+/** `<span class="v-grade …">` Advisor grade badge for the collapsed row, or ""
+ *  when the session hasn't done enough to score yet — lets a low-scoring
+ *  session stand out in the list without expanding it. */
+function gradeBadge(s: SessionViewModel): string {
+  const a = s.advisor;
+  if (a.neutral) {
+    return "";
+  }
+  const sev = gradeSeverity(a.grade);
+  return `<span class="v-grade ${sev}" title="Efficiency grade ${esc(a.grade)} (${a.score}/100) — open for details">${esc(a.grade)}</span>`;
+}
+
+/** Vitals header: live pulse, session name + id, model chip, Advisor grade badge, a
+ *  full-width context meter (used/window tokens + %), and a single-row stat strip
+ *  (tokens, cost, agents, burn rate). A horizontal meter reads the absolute + relative
+ *  numbers in one line, where the previous ring could only fit the percent and needed
+ *  a separate line below it.
  *  `.v-top` also doubles as the click/keyboard toggle for the session's collapsible body
- *  (Orchestration/Token Economics/Activity) — `expanded` is the initial `aria-expanded`
- *  the caller (`main.ts`) has already resolved for this render (live-based default, or a
- *  remembered manual override), not state this function owns. */
+ *  (Orchestration/Token Economics/Activity), with an explicit "View detail"/"Hide detail"
+ *  button so the affordance to expand reads as a button, not just an implicit chevron —
+ *  `expanded` is the initial `aria-expanded` the caller (`main.ts`) has already resolved
+ *  for this render (collapsed by default, or a remembered manual override), not state
+ *  this function owns. The card's left border tints to the Advisor grade's severity color
+ *  (once scored) so a low-scoring session is visible even collapsed. */
 export function renderVitals(s: SessionViewModel, expanded: boolean): string {
   const dotClass = s.running ? "dot running" : s.live ? "dot live" : "dot idle";
   const statusLabel = s.running ? "working" : s.live ? "live" : "idle";
@@ -42,16 +59,19 @@ export function renderVitals(s: SessionViewModel, expanded: boolean): string {
     s.running || s.burnRatePerMin !== undefined
       ? `<div class="stat"><b>${s.burnRatePerMin !== undefined ? `~${formatTokens(s.burnRatePerMin)}` : "—"}</b><u>tok/min</u></div>`
       : "";
+  const gradeSev = s.advisor.neutral ? "" : ` grade-${gradeSeverity(s.advisor.grade)}`;
 
   return `
-  <div class="vitals">
+  <div class="vitals${gradeSev}">
     <div class="v-top" role="button" tabindex="0" aria-expanded="${expanded}">
       <span class="${dotClass}" aria-hidden="true" title="${statusLabel}"></span>
       <div class="v-head">
         <div class="v-name" title="${esc(s.cwd)}">${esc(name)}</div>
         <div class="v-id">${esc(subtitle)}</div>
       </div>
+      ${gradeBadge(s)}
       ${modelChip(s.model)}
+      <span class="v-toggle">${expanded ? "Hide detail" : "View detail"}</span>
     </div>
     <div class="v-meter" title="${ctxDetail} (${ctxPct})">
       <div class="v-meter-row">

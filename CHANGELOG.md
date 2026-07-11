@@ -12,6 +12,13 @@ All notable changes to this project are documented here. Format loosely follows
 - Token burn-rate (`~NK/min`) sampled on a bounded ring, shown in vitals; `—` before the
   second sample or once a session goes idle.
 - Honest `N calls` progress chip on running agents — no fabricated percentage.
+- Sidebar sessions now collapse to their vitals row by default regardless of live status
+  (previously a live session auto-expanded), with an explicit "View detail"/"Hide detail"
+  toggle button in place of the implicit chevron. An expanded session gets an accent-colored
+  frame and its vitals header stays pinned (`position: sticky`) while scrolling its own body,
+  so it stays visually distinct from collapsed siblings.
+- Efficiency Advisor grade badge and a severity-tinted left border on the vitals row, so a
+  low-scoring session stands out in the (collapsed) list without opening its detail.
 
 ### Fixed
 - Sub-agent detection matched the wrong tool_use name (`Task`) — real transcripts name the

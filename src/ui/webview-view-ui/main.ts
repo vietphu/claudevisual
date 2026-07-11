@@ -22,18 +22,17 @@ const openAgents = new Set<string>();
 // sessionId only ever appears here once the user has explicitly opened it.
 const openActivity = new Set<string>();
 // Explicit user overrides of a session's collapsed/expanded body, keyed by
-// sessionId. A session with no entry here falls back to `!s.live` (a dead
-// transcript collapses to its vitals row by default; anything still live —
-// running or waiting-for-input — stays expanded), so the currently-active
-// session isn't buried under detail from old ones. Unlike `openAgents`/
-// `openActivity`, this is consulted directly in `renderSession` while
-// building the HTML string, not patched onto the DOM afterward — simpler,
-// since the collapsed/expanded class is session-specific from the start
-// rather than a uniform "closed by default" template.
+// sessionId. Every session starts collapsed to its vitals row — live/running
+// doesn't auto-expand it — so the list stays scannable and a session's detail
+// only ever opens on an explicit click. Unlike `openAgents`/`openActivity`,
+// this is consulted directly in `renderSession` while building the HTML
+// string, not patched onto the DOM afterward — simpler, since the
+// collapsed/expanded class is session-specific from the start rather than a
+// uniform "closed by default" template.
 const sessionOverrides = new Map<string, boolean>();
 
 function renderSession(s: SessionViewModel): string {
-  const collapsed = sessionOverrides.get(s.sessionId) ?? !s.live;
+  const collapsed = sessionOverrides.get(s.sessionId) ?? true;
   return `<section class="cv-session${collapsed ? " collapsed" : ""}" data-session="${esc(s.sessionId)}">${renderVitals(
     s,
     !collapsed
@@ -128,9 +127,10 @@ function toggleActivity(header: HTMLElement): void {
 
 /** Flips a session's collapsed/expanded body (Orchestration/Token Economics/
  *  Activity) and remembers the choice in `sessionOverrides`, overriding the
- *  `!s.live` default until the session disappears from the view-model. Every
- *  session's `.v-top` is a valid toggle target (unlike an agent row, the body
- *  always has at least the "no sub-agents spawned yet" placeholder). */
+ *  collapsed-by-default state until the session disappears from the
+ *  view-model. Every session's `.v-top` is a valid toggle target (unlike an
+ *  agent row, the body always has at least the "no sub-agents spawned yet"
+ *  placeholder). */
 function toggleSession(header: HTMLElement): void {
   const section = header.closest(".cv-session");
   if (!section) {
@@ -142,13 +142,20 @@ function toggleSession(header: HTMLElement): void {
   }
   // Source of truth is the override map once one exists for this id (matching
   // `toggleAgentRow`/`toggleActivity`, which read their own Set rather than the
-  // DOM); the classList is only consulted as the live-based default's stand-in
+  // DOM); the classList is only consulted as the collapsed-by-default stand-in
   // the first time a session is toggled, before any override has been recorded.
   const currentlyCollapsed = sessionOverrides.get(id) ?? section.classList.contains("collapsed");
   const nowCollapsed = !currentlyCollapsed;
   sessionOverrides.set(id, nowCollapsed);
   section.classList.toggle("collapsed", nowCollapsed);
   header.setAttribute("aria-expanded", String(!nowCollapsed));
+  // The label's text is baked in at render time (see renderVitals); on an idle
+  // session nothing re-renders after a click, so it has to be patched here too
+  // or it'd contradict the aria-expanded state it sits right next to.
+  const label = header.querySelector<HTMLElement>(".v-toggle");
+  if (label) {
+    label.textContent = nowCollapsed ? "View detail" : "Hide detail";
+  }
 }
 
 function mount(): void {
