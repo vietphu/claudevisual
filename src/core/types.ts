@@ -123,6 +123,10 @@ export interface SubAgentState {
    *  `description` (falls back to a truncated `prompt`). Undefined if neither
    *  was present on the spawning call. */
   spawnReason?: string;
+  /** Bounded, most-recent-last ring buffer of this sub-agent's own tool_use
+   *  calls, parsed from its transcript — drives the agent drill-down panel and
+   *  its contribution to the activity heartbeat. */
+  recentToolCalls: ToolCallRecord[];
 }
 
 export function emptySubAgentState(
@@ -137,6 +141,7 @@ export function emptySubAgentState(
     tokens: emptyUsage(),
     startedAt,
     lastUpdatedAt: startedAt,
+    recentToolCalls: [],
   };
 }
 

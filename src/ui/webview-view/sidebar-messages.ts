@@ -15,6 +15,14 @@ export interface AgentViewModel {
   colorIndex: number;
   model?: string;
   spawnReason?: string;
+  /** This agent's own tool calls + files, shown when its row is expanded. */
+  detail: AgentDetailViewModel;
+}
+
+/** Per-agent drill-down payload (its own recent tool calls + files touched). */
+export interface AgentDetailViewModel {
+  calls: FeedItemViewModel[];
+  files: FileViewModel[];
 }
 
 /** One agent's slice of the session token spend (economics stacked bar). */
@@ -44,7 +52,7 @@ export interface FeedItemViewModel {
   name: string;
   detail?: string;
   category: ToolCategory;
-  /** Local `HH:MM:SS`. Parse-time approximation until Phase 3 wires real event times. */
+  /** Local `HH:MM:SS`, from the tool call's real transcript timestamp. */
   time: string;
   /** `true` for `Task` spawns — rendered with the dashed "spawn" treatment. */
   spawn: boolean;
@@ -75,6 +83,10 @@ export interface SessionViewModel {
   costEstimated: boolean;
   agents: AgentViewModel[];
   economics: EconomicsViewModel;
+  /** Activity heartbeat: one agent-identity color index per recent tool call
+   *  across main + every sub-agent, ordered oldest → newest. Empty when the
+   *  session has no recorded tool calls yet. */
+  heartbeat: number[];
   feed: FeedItemViewModel[];
   files: FileViewModel[];
 }

@@ -121,6 +121,34 @@ describe("session-view-model", () => {
     assert.ok(vm.agents[0].colorIndex >= 1);
   });
 
+  it("builds agent drill-down detail and a merged, agent-colored heartbeat", () => {
+    const state = emptySessionState("s1", "/p");
+    state.recentToolCalls = [
+      { name: "Bash", detail: "npm test", timestamp: 100 },
+      { name: "Edit", detail: "src/a.ts", timestamp: 300 },
+    ];
+    const agent = emptySubAgentState("agent-x", "researcher", 1);
+    agent.recentToolCalls = [{ name: "Read", detail: "docs/x.md", timestamp: 200 }];
+    state.subagents.set("agent-x", agent);
+
+    const vm = toSidebarViewModel([state]).sessions[0];
+
+    // drill-down: the agent's own call + derived file
+    assert.equal(vm.agents[0].detail.calls[0].name, "Read");
+    assert.equal(vm.agents[0].detail.files[0].base, "x.md");
+
+    // heartbeat: merged + ordered by real ts (100 main, 200 agent, 300 main)
+    assert.equal(vm.heartbeat.length, 3);
+    assert.equal(vm.heartbeat[0], 0); // main identity color = index 0
+    assert.notEqual(vm.heartbeat[1], 0); // sub-agent color != main
+    assert.equal(vm.heartbeat[2], 0);
+  });
+
+  it("has an empty heartbeat when the session has no tool calls", () => {
+    const vm = toSidebarViewModel([emptySessionState("s1", "/p")]).sessions[0];
+    assert.equal(vm.heartbeat.length, 0);
+  });
+
   it("sorts sessions by most-recently-updated", () => {
     const older = { ...emptySessionState("old", "/p"), lastUpdatedAt: 100 };
     const newer = { ...emptySessionState("new", "/p"), lastUpdatedAt: 200 };

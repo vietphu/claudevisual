@@ -2,12 +2,12 @@ import { agentColorIndex } from "./agent-color";
 import { resolveContextPercent, sumUsage } from "../../core/session-display";
 import { estimateCostUsd } from "../../core/model-pricing";
 import { tokenEconomics } from "../../core/token-economics";
-import { SessionState, SubAgentState, ToolCallRecord } from "../../core/types";
+import { MAIN_AGENT_ID, SessionState, SubAgentState, ToolCallRecord } from "../../core/types";
+import { extractFiles } from "./touched-files";
 import {
   AgentViewModel,
   EconomicsViewModel,
   FeedItemViewModel,
-  FileViewModel,
   SessionViewModel,
   SidebarViewModel,
   ToolCategory,
@@ -47,9 +47,36 @@ function toSessionViewModel(state: SessionState): SessionViewModel {
       .sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt)
       .map(toAgentViewModel),
     economics,
+    heartbeat: buildHeartbeat(state),
     feed: calls.map(toFeedItem),
     files: extractFiles(calls),
   };
+}
+
+/** Max heartbeat bars kept — a recent window, not the whole session. */
+const HEARTBEAT_MAX = 48;
+
+/**
+ * Activity heartbeat: merge the main session's tool calls (main identity color)
+ * with every sub-agent's own tool calls (each agent's color), order by real
+ * transcript time, and keep the most recent window. Purely derived from
+ * `SessionState` — no hooks required.
+ */
+function buildHeartbeat(state: SessionState): number[] {
+  const samples: Array<{ ts: number; colorIndex: number }> = [];
+  const mainColor = agentColorIndex(MAIN_AGENT_ID);
+  for (const call of state.recentToolCalls) {
+    samples.push({ ts: call.timestamp, colorIndex: mainColor });
+  }
+  for (const agent of state.subagents.values()) {
+    const color = agentColorIndex(agent.agentId);
+    for (const call of agent.recentToolCalls) {
+      samples.push({ ts: call.timestamp, colorIndex: color });
+    }
+  }
+  samples.sort((a, b) => a.ts - b.ts);
+  const tail = samples.length > HEARTBEAT_MAX ? samples.slice(samples.length - HEARTBEAT_MAX) : samples;
+  return tail.map((s) => s.colorIndex);
 }
 
 /** Precise statusline cost wins; otherwise fall back to a pricing-table
@@ -81,6 +108,7 @@ function toEconomics(state: SessionState): EconomicsViewModel {
 
 function toAgentViewModel(agent: SubAgentState): AgentViewModel {
   const t = agent.tokens;
+  const calls = agent.recentToolCalls.slice().reverse(); // most-recent first
   return {
     agentId: agent.agentId,
     type: agent.subagentType,
@@ -89,6 +117,7 @@ function toAgentViewModel(agent: SubAgentState): AgentViewModel {
     colorIndex: agentColorIndex(agent.agentId),
     model: agent.model,
     spawnReason: agent.spawnReason,
+    detail: { calls: calls.map(toFeedItem), files: extractFiles(calls) },
   };
 }
 
@@ -100,28 +129,6 @@ function toFeedItem(call: ToolCallRecord): FeedItemViewModel {
     time: formatClock(call.timestamp),
     spawn: call.name === "Task",
   };
-}
-
-const FILE_TOOLS = new Set(["Read", "Edit", "Write", "MultiEdit"]);
-
-/** Most-recent-wins list of files touched, derived from file-tool calls. */
-function extractFiles(callsNewestFirst: ToolCallRecord[]): FileViewModel[] {
-  const byPath = new Map<string, FileViewModel>();
-  for (const call of callsNewestFirst) {
-    if (!FILE_TOOLS.has(call.name) || !call.detail || !looksLikePath(call.detail)) {
-      continue;
-    }
-    if (byPath.has(call.detail)) {
-      continue; // newest-first: first occurrence is the latest access
-    }
-    byPath.set(call.detail, {
-      path: call.detail,
-      base: basename(call.detail),
-      dir: dirname(call.detail),
-      access: call.name === "Read" ? "read" : "edit",
-    });
-  }
-  return Array.from(byPath.values());
 }
 
 function categorize(name: string): ToolCategory {
@@ -141,30 +148,6 @@ function categorize(name: string): ToolCategory {
     return "agent";
   }
   return "other";
-}
-
-/** A file-tool's `detail` is its `file_path`, which can legitimately contain
- *  spaces (e.g. `~/Library/Application Support/...`). Only require it to be
- *  non-empty and path-shaped; the `FILE_TOOLS` gate already ensures it's a path. */
-function looksLikePath(detail: string): boolean {
-  return detail.length > 0 && (detail.includes("/") || detail.includes("\\") || detail.includes("."));
-}
-
-/** Last path separator index, handling both POSIX `/` and Windows `\`. */
-function lastSep(p: string): number {
-  return Math.max(p.lastIndexOf("/"), p.lastIndexOf("\\"));
-}
-
-function basename(p: string): string {
-  const clean = p.replace(/[/\\]+$/, "");
-  const i = lastSep(clean);
-  return i >= 0 ? clean.slice(i + 1) : clean;
-}
-
-function dirname(p: string): string {
-  const clean = p.replace(/[/\\]+$/, "");
-  const i = lastSep(clean);
-  return i > 0 ? clean.slice(0, i) : "";
 }
 
 function formatClock(ms: number): string {

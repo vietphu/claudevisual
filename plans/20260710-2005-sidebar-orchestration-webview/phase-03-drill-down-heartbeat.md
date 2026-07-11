@@ -1,10 +1,12 @@
 ---
 phase: 3
-title: "Drill-down + Heartbeat"
-status: pending
+title: Drill-down + Heartbeat
+status: completed
 priority: P2
-effort: "1-1.5d"
-dependencies: [1, 2]
+effort: 1-1.5d
+dependencies:
+  - 1
+  - 2
 ---
 
 # Phase 3: Drill-down + Heartbeat

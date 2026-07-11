@@ -524,4 +524,46 @@ describe("state-reducer", () => {
       assert.deepEqual(after.cumulativeUsage, parent.cumulativeUsage);
     });
   });
+
+  describe("tool-call timeline (real transcript timestamps)", () => {
+    it("parses a sub-agent's tool_use blocks into its ring with the line's real ISO time", () => {
+      let state = reduceSessionState(emptySessionState("s1", "/p"), {
+        type: "assistant",
+        sessionId: "s1",
+        raw: {
+          type: "assistant",
+          message: { content: [{ type: "tool_use", id: "agent-t1", name: "Task", input: { subagent_type: "researcher" } }] },
+        },
+      });
+      const iso = "2026-07-10T09:24:20.201Z";
+      const agentLine: ParsedLine = {
+        type: "assistant",
+        raw: {
+          type: "assistant",
+          timestamp: iso,
+          message: { content: [{ type: "tool_use", id: "x", name: "Read", input: { file_path: "src/a.ts" } }] },
+        },
+      };
+      state = reduceSubAgentLine(state, "agent-t1", agentLine);
+      const agent = state.subagents.get("agent-t1");
+      assert.equal(agent?.recentToolCalls.length, 1);
+      assert.equal(agent?.recentToolCalls[0].name, "Read");
+      assert.equal(agent?.recentToolCalls[0].detail, "src/a.ts");
+      assert.equal(agent?.recentToolCalls[0].timestamp, Date.parse(iso));
+    });
+
+    it("stamps main-session tool calls with the line's real transcript time", () => {
+      const iso = "2026-07-10T10:00:00.000Z";
+      const state = reduceSessionState(emptySessionState("s1", "/p"), {
+        type: "assistant",
+        sessionId: "s1",
+        raw: {
+          type: "assistant",
+          timestamp: iso,
+          message: { content: [{ type: "tool_use", id: "y", name: "Bash", input: { command: "ls" } }] },
+        },
+      });
+      assert.equal(state.recentToolCalls[0].timestamp, Date.parse(iso));
+    });
+  });
 });

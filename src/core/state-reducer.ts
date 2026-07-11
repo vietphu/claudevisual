@@ -90,7 +90,16 @@ export function reduceSubAgentLine(state: SessionState, agentId: string, line: P
 
   // First non-empty model wins — a sub-agent's model is stable for its lifetime.
   const model = existing.model ?? (typeof message.model === "string" ? message.model : undefined);
-  const updated: SubAgentState = { ...existing, tokens: nextTokens, model, lastUpdatedAt: Date.now() };
+  // Parse this sub-agent's own tool_use blocks into its ring buffer, stamped
+  // with the line's real transcript time (drives drill-down + heartbeat).
+  const ts = lineTimestamp(line);
+  let recentToolCalls = existing.recentToolCalls;
+  for (const block of extractToolUseBlocks(message.content)) {
+    if (block.name) {
+      recentToolCalls = pushRecentToolCall(recentToolCalls, block, ts);
+    }
+  }
+  const updated: SubAgentState = { ...existing, tokens: nextTokens, model, recentToolCalls, lastUpdatedAt: Date.now() };
   const subagents = new Map(state.subagents);
   subagents.set(agentId, updated);
   return { ...state, subagents, lastUpdatedAt: Date.now() };
@@ -117,7 +126,7 @@ function reduceAssistant(state: SessionState, line: ParsedLine): SessionState {
     ? (usage.input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0)
     : state.lastTurnContextTokens;
 
-  const { subagents, skillsInvoked, recentToolCalls } = reduceToolUseBlocks(state, message.content);
+  const { subagents, skillsInvoked, recentToolCalls } = reduceToolUseBlocks(state, message.content, lineTimestamp(line));
 
   return {
     ...state,
@@ -179,7 +188,7 @@ interface ToolUseReduction {
 
 /** Scans one assistant turn's tool_use blocks for `Task` (sub-agents), `Skill`
  * (skill invocations), and every call's entry in the recent-calls ring buffer. */
-function reduceToolUseBlocks(state: SessionState, content: unknown): ToolUseReduction {
+function reduceToolUseBlocks(state: SessionState, content: unknown, timestamp: number): ToolUseReduction {
   const toolUseBlocks = extractToolUseBlocks(content);
   let subagents = state.subagents;
   let skillsInvoked = state.skillsInvoked;
@@ -189,7 +198,7 @@ function reduceToolUseBlocks(state: SessionState, content: unknown): ToolUseRedu
     if (!block.name) {
       continue;
     }
-    recentToolCalls = pushRecentToolCall(recentToolCalls, block);
+    recentToolCalls = pushRecentToolCall(recentToolCalls, block, timestamp);
     if (block.name === "Task" && block.id) {
       subagents = upsertSubAgentFromTask(subagents, block.id, block.input);
     } else if (block.name === "Skill") {
@@ -260,14 +269,31 @@ function extractSkillName(input: Record<string, unknown> | undefined): string | 
   return undefined;
 }
 
-function pushRecentToolCall(list: ToolCallRecord[], block: ToolUseBlock): ToolCallRecord[] {
+function pushRecentToolCall(list: ToolCallRecord[], block: ToolUseBlock, timestamp: number): ToolCallRecord[] {
   const record: ToolCallRecord = {
     name: block.name as string,
     detail: extractToolCallDetail(block),
-    timestamp: Date.now(),
+    timestamp,
   };
   const next = [...list, record];
   return next.length > MAX_RECENT_TOOL_CALLS ? next.slice(next.length - MAX_RECENT_TOOL_CALLS) : next;
+}
+
+/** Best-effort real event time for a transcript line — parses the line's
+ *  `timestamp` (ISO 8601 string as written by Claude Code, or epoch ms),
+ *  falling back to now when absent/unparseable so ordering still works. */
+function lineTimestamp(line: ParsedLine): number {
+  const ts = line.raw.timestamp;
+  if (typeof ts === "number" && ts > 0) {
+    return ts;
+  }
+  if (typeof ts === "string") {
+    const parsed = Date.parse(ts);
+    if (!Number.isNaN(parsed)) {
+      return parsed;
+    }
+  }
+  return Date.now();
 }
 
 function extractToolCallDetail(block: ToolUseBlock): string | undefined {
