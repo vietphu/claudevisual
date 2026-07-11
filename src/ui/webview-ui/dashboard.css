@@ -157,3 +157,11 @@ select {
 .adv-rec-title { flex: 1; font-weight: 600; min-width: 0; }
 .adv-rec-metric { font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; opacity: 0.7; }
 .adv-rec-detail { margin-top: 5px; font-size: 12px; opacity: 0.75; line-height: 1.5; }
+.adv-rec-copy {
+  display: inline-flex; align-items: center; gap: 5px; flex: none;
+  font-size: 11px; opacity: 0.75; cursor: pointer; user-select: none;
+  border: 1px solid var(--vscode-widget-border, #444); border-radius: 4px; padding: 3px 9px;
+}
+.adv-rec-copy:hover, .adv-rec-copy:focus-visible { opacity: 1; background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent); }
+.adv-rec-copy.flash { opacity: 1; color: var(--adv-good); border-color: var(--adv-good); background: color-mix(in srgb, var(--adv-good) 14%, transparent); }
+.adv-rec-copy-ic { flex: none; }

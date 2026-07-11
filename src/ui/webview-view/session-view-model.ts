@@ -3,7 +3,7 @@ import { buildAgentTree, flattenAgentTree } from "../../core/agent-tree";
 import { toFeedItem } from "./feed-item";
 import { buildHeartbeat } from "./heartbeat";
 import { resolveContextPercent, sumUsage } from "../../core/session-display";
-import { estimateCostUsd } from "../../core/model-pricing";
+import { estimateCostFromState } from "../../core/model-pricing";
 import { tokenEconomics } from "../../core/token-economics";
 import { analyzeSession } from "../../core/advisor/advisor-engine";
 import { AdvisorConfig, DEFAULT_ADVISOR_CONFIG } from "../../core/advisor/advisor-config";
@@ -32,7 +32,7 @@ function toSessionViewModel(state: SessionState, advisorConfig: AdvisorConfig): 
   const { percent, precise, usedTokens, windowTokens } = resolveContextPercent(state);
   const calls = state.recentToolCalls.slice().reverse(); // most-recent first
   const economics = toEconomics(state);
-  const { costUsd, costEstimated } = resolveCost(state, economics);
+  const { costUsd, costEstimated } = resolveCost(state);
   return {
     sessionId: state.sessionId,
     shortId: state.sessionId.slice(0, 8),
@@ -45,7 +45,7 @@ function toSessionViewModel(state: SessionState, advisorConfig: AdvisorConfig): 
     contextPrecise: precise,
     contextUsedTokens: usedTokens,
     contextWindowTokens: windowTokens,
-    totalTokens: sumUsage(state),
+    totalTokens: economics.totalTokens,
     costUsd,
     costEstimated,
     burnRatePerMin: state.burnRatePerMin,
@@ -85,16 +85,17 @@ function toAdvisor(result: AdvisorResult): AdvisorViewModel {
   };
 }
 
-/** Precise statusline cost wins; otherwise fall back to a pricing-table
- *  estimate off the per-model rollup (flagged `costEstimated`). */
-function resolveCost(
-  state: SessionState,
-  economics: EconomicsViewModel
-): { costUsd?: number; costEstimated: boolean } {
+/** Precise statusline cost wins; otherwise fall back to a split-bucket pricing
+ *  estimate (input/output/cache-write/cache-read priced separately — cache-read
+ *  is ~10x cheaper than input, so a flat blended rate over all buckets would
+ *  overstate cost on long, cache-heavy sessions) across main + every sub-agent
+ *  (flagged `costEstimated`). Same formula the Efficiency Advisor uses, so the
+ *  two never disagree. */
+function resolveCost(state: SessionState): { costUsd?: number; costEstimated: boolean } {
   if (state.preciseCostUsd !== undefined) {
     return { costUsd: state.preciseCostUsd, costEstimated: false };
   }
-  return { costUsd: estimateCostUsd(economics.byModel), costEstimated: true };
+  return { costUsd: estimateCostFromState(state), costEstimated: true };
 }
 
 function toEconomics(state: SessionState): EconomicsViewModel {
