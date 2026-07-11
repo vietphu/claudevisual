@@ -17,6 +17,13 @@ token/cost overhead.
 - **Dashboard webview** — hand-rolled token/cost/context-usage charts fed by incremental
   updates, plus a dual-scope (global + project) config-editing form with diff/confirm and Undo
   on every write.
+- **Efficiency Advisor** — turns the measured signals into an at-a-glance Efficiency Score
+  (A–F) plus ranked, actionable cost/efficiency recommendations (context near limit, cache
+  churn, model right-sizing, expensive sub-agents, repeated compaction, truncated turns).
+  Surfaced in the sidebar, the dashboard, and the status bar, with an optional toast on
+  critical conditions. Plan-aware: on a flat-fee subscription (Max/Pro) the dollar figure is
+  framed as an API-equivalent usage-budget proxy, not billed money (set
+  `claudevisual.advisor.plan`).
 - **Opt-in hooks** — lower-latency "is it running now" signal than JSONL tailing alone.
   Installs safely: appends to existing hook arrays in `settings.json`, never replaces them.
 - **Opt-in StatusLine wrap** — precise context%/cost numbers, without disturbing an existing

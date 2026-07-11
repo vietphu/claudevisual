@@ -5,9 +5,12 @@ import { buildHeartbeat } from "./heartbeat";
 import { resolveContextPercent, sumUsage } from "../../core/session-display";
 import { estimateCostUsd } from "../../core/model-pricing";
 import { tokenEconomics } from "../../core/token-economics";
+import { analyzeSession } from "../../core/advisor/advisor-engine";
+import { AdvisorConfig, DEFAULT_ADVISOR_CONFIG } from "../../core/advisor/advisor-config";
+import { AdvisorResult } from "../../core/advisor/advisor-types";
 import { MAIN_AGENT_ID, SessionState, SubAgentState, ToolCallRecord } from "../../core/types";
 import { extractFiles } from "./touched-files";
-import { AgentViewModel, EconomicsViewModel, SessionViewModel, SidebarViewModel } from "./sidebar-messages";
+import { AdvisorViewModel, AgentViewModel, EconomicsViewModel, SessionViewModel, SidebarViewModel } from "./sidebar-messages";
 
 /**
  * Pure host-side transform: `SessionState[]` (rich in-memory model, holds Maps)
@@ -17,12 +20,15 @@ import { AgentViewModel, EconomicsViewModel, SessionViewModel, SidebarViewModel 
  * Phase 1/2 scope: vitals, a flat agent list, economics, the recent-activity
  * feed, and the files-touched panel — all from data already in `SessionState`.
  */
-export function toSidebarViewModel(sessions: readonly SessionState[]): SidebarViewModel {
+export function toSidebarViewModel(
+  sessions: readonly SessionState[],
+  advisorConfig: AdvisorConfig = DEFAULT_ADVISOR_CONFIG
+): SidebarViewModel {
   const ordered = sessions.slice().sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt);
-  return { sessions: ordered.map(toSessionViewModel) };
+  return { sessions: ordered.map((s) => toSessionViewModel(s, advisorConfig)) };
 }
 
-function toSessionViewModel(state: SessionState): SessionViewModel {
+function toSessionViewModel(state: SessionState, advisorConfig: AdvisorConfig): SessionViewModel {
   const { percent, precise, usedTokens, windowTokens } = resolveContextPercent(state);
   const calls = state.recentToolCalls.slice().reverse(); // most-recent first
   const economics = toEconomics(state);
@@ -52,9 +58,30 @@ function toSessionViewModel(state: SessionState): SessionViewModel {
       toAgentViewModel(node.agent, node.depth)
     ),
     economics,
+    advisor: toAdvisor(analyzeSession(state, advisorConfig)),
     heartbeat: buildHeartbeat(state),
     feed: calls.map(toFeedItem),
     files: extractFiles(calls),
+  };
+}
+
+/** Flatten the core `AdvisorResult` into the serializable sidebar DTO. */
+function toAdvisor(result: AdvisorResult): AdvisorViewModel {
+  return {
+    score: result.score.score,
+    grade: result.score.grade,
+    neutral: result.score.neutral,
+    dimensions: result.score.dimensions.map((d) => ({ key: d.key, label: d.label, score: d.score })),
+    recommendations: result.recommendations.map((r) => ({
+      id: r.id,
+      severity: r.severity,
+      category: r.category,
+      title: r.title,
+      detail: r.detail,
+      metric: r.metric,
+    })),
+    costDisplay: result.cost?.display,
+    costTooltip: result.cost?.tooltip,
   };
 }
 

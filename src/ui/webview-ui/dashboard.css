@@ -106,3 +106,54 @@ select {
   max-width: 360px;
   font-size: 12px;
 }
+
+/* Efficiency Advisor (dashboard) */
+.cv-advisor {
+  --adv-good: #63c48a; --adv-warn: #e0a44e; --adv-crit: #e5634d; --adv-info: #5aa0e0;
+}
+.cv-advisor-body { max-width: 600px; }
+.adv-empty { opacity: 0.6; font-style: italic; }
+.adv-report-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.adv-grade {
+  flex: none; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; border-radius: 8px;
+  border: 1px solid var(--vscode-widget-border, #444);
+}
+.adv-grade.good { color: var(--adv-good); background: color-mix(in srgb, var(--adv-good) 14%, transparent); }
+.adv-grade.warn { color: var(--adv-warn); background: color-mix(in srgb, var(--adv-warn) 14%, transparent); }
+.adv-grade.crit { color: var(--adv-crit); background: color-mix(in srgb, var(--adv-crit) 14%, transparent); }
+.adv-report-title b { font-weight: 700; }
+.adv-model { opacity: 0.6; font-size: 11px; font-family: var(--vscode-editor-font-family, monospace); }
+.adv-report-sub { opacity: 0.85; font-family: var(--vscode-editor-font-family, monospace); margin-top: 2px; }
+.adv-report-sub em { opacity: 0.6; font-style: normal; font-size: 11px; }
+.adv-cost { margin-left: 8px; opacity: 0.75; }
+
+.adv-dims { display: flex; flex-direction: column; gap: 4px; margin: 10px 0 14px; }
+.adv-dim { display: flex; align-items: center; gap: 8px; }
+.adv-dim-label { flex: none; width: 110px; font-size: 12px; opacity: 0.8; }
+.adv-dim-track { flex: 1; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--vscode-foreground) 10%, transparent); overflow: hidden; }
+.adv-dim-fill { display: block; height: 100%; border-radius: 3px; }
+.adv-dim-fill.good { background: var(--adv-good); }
+.adv-dim-fill.warn { background: var(--adv-warn); }
+.adv-dim-fill.crit { background: var(--adv-crit); }
+.adv-dim-num { flex: none; width: 26px; text-align: right; font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; opacity: 0.7; }
+
+.adv-recs { display: flex; flex-direction: column; gap: 8px; }
+.adv-clear { opacity: 0.65; font-style: italic; }
+.adv-rec {
+  border: 1px solid var(--vscode-widget-border, #444); border-left-width: 3px;
+  border-radius: 5px; padding: 8px 10px;
+  background: color-mix(in srgb, var(--vscode-foreground) 4%, transparent);
+}
+.adv-rec.sev-critical { border-left-color: var(--adv-crit); }
+.adv-rec.sev-warn { border-left-color: var(--adv-warn); }
+.adv-rec.sev-info { border-left-color: var(--adv-info); }
+.adv-rec-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.adv-rec-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.adv-rec.sev-critical .adv-rec-dot { background: var(--adv-crit); }
+.adv-rec.sev-warn .adv-rec-dot { background: var(--adv-warn); }
+.adv-rec.sev-info .adv-rec-dot { background: var(--adv-info); }
+.adv-rec-cat { font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.6; font-family: var(--vscode-editor-font-family, monospace); }
+.adv-rec-title { flex: 1; font-weight: 600; min-width: 0; }
+.adv-rec-metric { font-family: var(--vscode-editor-font-family, monospace); font-size: 11px; opacity: 0.7; }
+.adv-rec-detail { margin-top: 5px; font-size: 12px; opacity: 0.75; line-height: 1.5; }

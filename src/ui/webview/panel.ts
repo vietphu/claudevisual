@@ -3,9 +3,12 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { SessionMetricsDiff, SessionStateStore } from "../../core/session-state-store";
 import { logError } from "../../diagnostics/logger";
+import { analyzeSession } from "../../core/advisor/advisor-engine";
+import { SessionState } from "../../core/types";
+import { resolveAdvisorConfig } from "../../config/advisor-plan";
 import { buildChartPoints } from "./charts";
 import { ConfigFormController } from "./config-form";
-import type { HostToWebviewMessage, WebviewToHostMessage } from "./messages";
+import type { AdvisorReport, HostToWebviewMessage, WebviewToHostMessage } from "./messages";
 
 /**
  * Singleton dashboard WebviewPanel — "ClaudeVisual: Open Dashboard" reveals
@@ -20,6 +23,7 @@ export class DashboardPanel implements vscode.Disposable {
 
   private readonly panel: vscode.WebviewPanel;
   private readonly configForm: ConfigFormController;
+  private readonly store: SessionStateStore;
   private readonly disposables: vscode.Disposable[] = [];
 
   static createOrShow(context: vscode.ExtensionContext, store: SessionStateStore): void {
@@ -31,6 +35,7 @@ export class DashboardPanel implements vscode.Disposable {
   }
 
   private constructor(context: vscode.ExtensionContext, store: SessionStateStore) {
+    this.store = store;
     this.panel = vscode.window.createWebviewPanel(
       "claudevisual.dashboard",
       "ClaudeVisual Dashboard",
@@ -50,6 +55,10 @@ export class DashboardPanel implements vscode.Disposable {
       this.panel.onDidDispose(() => this.dispose()),
       this.panel.webview.onDidReceiveMessage((message: WebviewToHostMessage) => void this.handleMessage(message)),
       store.onDidChangeMetrics((diffs) => this.postMetrics(diffs)),
+      // Full snapshots drive the retrospective Efficiency report (the metrics
+      // diff only carries changed sessions; the report wants the current
+      // primary session's whole state).
+      store.onDidChange((sessions) => this.postAdvisorReport(sessions)),
       // Multi-root workspace edge case: if folders change while the panel is
       // open, only the config form's write-scope target is re-resolved here.
       // The panel stays bound to the `store` instance it was created with;
@@ -78,6 +87,12 @@ export class DashboardPanel implements vscode.Disposable {
     this.post({ type: "metrics-diff", points });
   }
 
+  /** Analyzes the primary (most-recently-updated) session and posts its Efficiency
+   *  report. Mirrors the sidebar's "primary session" choice so both agree. */
+  private postAdvisorReport(sessions: readonly SessionState[]): void {
+    this.post({ type: "advisor-report", report: buildAdvisorReport(sessions) });
+  }
+
   private post(message: HostToWebviewMessage): void {
     void this.panel.webview.postMessage(message);
   }
@@ -94,6 +109,9 @@ export class DashboardPanel implements vscode.Disposable {
     try {
       if (message.type === "ready") {
         this.post(await this.configForm.buildInitMessage());
+        // Replay the current report too: the first store change may have fired
+        // before this webview mounted.
+        this.postAdvisorReport(this.store.snapshot());
         return;
       }
       const result = await this.configForm.handleMessage(message);
@@ -133,4 +151,44 @@ export class DashboardPanel implements vscode.Disposable {
 </body>
 </html>`;
   }
+}
+
+/** Picks the most-recently-updated session and flattens its `AdvisorResult` into
+ *  the serializable `AdvisorReport` DTO. Returns null when there's no session. */
+function buildAdvisorReport(sessions: readonly SessionState[]): AdvisorReport | null {
+  let primary: SessionState | undefined;
+  for (const s of sessions) {
+    if (!primary || s.lastUpdatedAt > primary.lastUpdatedAt) {
+      primary = s;
+    }
+  }
+  if (!primary) {
+    return null;
+  }
+  const result = analyzeSession(primary, resolveAdvisorConfig());
+  return {
+    sessionId: primary.sessionId,
+    sessionLabel: primary.title || basename(primary.cwd) || primary.sessionId.slice(0, 8),
+    model: primary.model,
+    score: result.score.score,
+    grade: result.score.grade,
+    neutral: result.score.neutral,
+    dimensions: result.score.dimensions.map((d) => ({ key: d.key, label: d.label, score: d.score })),
+    recommendations: result.recommendations.map((r) => ({
+      id: r.id,
+      severity: r.severity,
+      category: r.category,
+      title: r.title,
+      detail: r.detail,
+      metric: r.metric,
+    })),
+    costDisplay: result.cost?.display,
+    costTooltip: result.cost?.tooltip,
+  };
+}
+
+function basename(p: string): string {
+  const clean = p.replace(/\/+$/, "");
+  const i = clean.lastIndexOf("/");
+  return i >= 0 ? clean.slice(i + 1) : clean;
 }

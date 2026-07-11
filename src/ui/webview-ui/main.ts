@@ -3,6 +3,7 @@
 // referenced by panel.ts's HTML. Wires the two dashboard sections (charts +
 // config form) to the host<->webview message protocol (../webview/messages.ts).
 import type { HostToWebviewMessage } from "../webview/messages";
+import { AdvisorView } from "./advisor-view";
 import { ChartView } from "./chart-view";
 import { ConfigFormView } from "./config-form-view";
 import { onHostMessage, postToHost } from "./vscode-api";
@@ -14,6 +15,10 @@ function mount(): void {
   }
 
   root.innerHTML = `
+    <section class="cv-advisor">
+      <h2>Efficiency Advisor</h2>
+      <div id="cv-advisor" class="cv-advisor-body"></div>
+    </section>
     <section class="cv-charts">
       <h2>Token usage (stacked: input / output / cache-read / cache-creation)</h2>
       <canvas id="cv-token-chart" width="600" height="140"></canvas>
@@ -25,6 +30,8 @@ function mount(): void {
     <section class="cv-config-form" id="cv-config-form"></section>
     <div id="cv-toast-container" class="cv-toast-container"></div>
   `;
+
+  const advisorView = new AdvisorView(root.querySelector<HTMLElement>("#cv-advisor")!);
 
   // Non-null assertions below are safe: every queried id was just written
   // into `root.innerHTML` on the line above, unconditionally.
@@ -46,6 +53,9 @@ function mount(): void {
         break;
       case "metrics-diff":
         chartView.applyPoints(message.points);
+        break;
+      case "advisor-report":
+        advisorView.render(message.report);
         break;
       case "write-result":
         formView.handleWriteResult(message);
