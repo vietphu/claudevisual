@@ -6,7 +6,7 @@ import type { SessionViewModel, SidebarViewModel } from "../webview-view/sidebar
 import { esc } from "./dom-utils";
 import { onHostMessage, postToHost } from "./sidebar-vscode-api";
 import { renderActivity } from "./render-activity";
-import { renderAdvisor } from "./render-advisor";
+import { handleAdvisorAction, renderAdvisor } from "./render-advisor";
 import { renderAgents } from "./render-agents";
 import { renderEconomics } from "./render-economics";
 import { renderVitals } from "./render-vitals";
@@ -167,6 +167,11 @@ function mount(): void {
   // state push keeps it open.
   root.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
+    const advisorAct = target.closest(".adv-rec-copy");
+    if (advisorAct) {
+      handleAdvisorAction(advisorAct as HTMLElement);
+      return;
+    }
     const vtop = target.closest(".v-top");
     if (vtop) {
       toggleSession(vtop as HTMLElement);
@@ -187,6 +192,12 @@ function mount(): void {
       return;
     }
     const target = event.target as HTMLElement;
+    const advisorAct = target.closest(".adv-rec-copy");
+    if (advisorAct) {
+      event.preventDefault();
+      handleAdvisorAction(advisorAct as HTMLElement);
+      return;
+    }
     const vtop = target.closest(".v-top");
     if (vtop) {
       event.preventDefault();

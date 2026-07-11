@@ -9,6 +9,7 @@ import { resolveAdvisorConfig } from "../../config/advisor-plan";
 import { buildChartPoints } from "./charts";
 import { ConfigFormController } from "./config-form";
 import type { AdvisorReport, HostToWebviewMessage, WebviewToHostMessage } from "./messages";
+import { copyAdvisorTip } from "../advisor-tip-handoff";
 
 /**
  * Singleton dashboard WebviewPanel — "ClaudeVisual: Open Dashboard" reveals
@@ -112,6 +113,10 @@ export class DashboardPanel implements vscode.Disposable {
         // Replay the current report too: the first store change may have fired
         // before this webview mounted.
         this.postAdvisorReport(this.store.snapshot());
+        return;
+      }
+      if (message.type === "advisor-copy") {
+        await copyAdvisorTip(message.text);
         return;
       }
       const result = await this.configForm.handleMessage(message);

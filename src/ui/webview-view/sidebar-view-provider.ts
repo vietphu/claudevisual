@@ -6,6 +6,7 @@ import { SessionState } from "../../core/types";
 import { HostToSidebarMessage, SidebarToHostMessage, SidebarViewModel } from "./sidebar-messages";
 import { toSidebarViewModel } from "./session-view-model";
 import { resolveAdvisorConfig } from "../../config/advisor-plan";
+import { copyAdvisorTip } from "../advisor-tip-handoff";
 
 /**
  * Sidebar `WebviewView` (replaces the former native TreeView). Registered once
@@ -45,6 +46,10 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.D
     view.webview.onDidReceiveMessage((message: SidebarToHostMessage) => {
       if (message?.type === "ready") {
         this.post(this.lastVm);
+        return;
+      }
+      if (message?.type === "advisor-copy") {
+        void copyAdvisorTip(message.text);
       }
     });
     // Re-post the latest state whenever the view becomes visible again — a

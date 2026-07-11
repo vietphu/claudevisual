@@ -329,6 +329,14 @@ body {
 .adv-rec-title { flex: 1; font-weight: 600; font-size: 11.5px; min-width: 0; }
 .adv-rec-metric { font-family: var(--mono); font-size: 10px; color: var(--dim); flex: none; }
 .adv-rec-detail { margin-top: 4px; font-size: 11px; color: var(--dim); line-height: 1.45; }
+.adv-rec-copy {
+  display: inline-flex; align-items: center; gap: 4px; flex: none;
+  font-size: 10px; color: var(--dim); border: 1px solid var(--border-soft);
+  border-radius: 4px; padding: 2px 7px; cursor: pointer; user-select: none;
+}
+.adv-rec-copy:hover, .adv-rec-copy:focus-visible { color: var(--vscode-foreground); background: var(--panel-hover); }
+.adv-rec-copy.flash { color: var(--good); border-color: var(--good); background: color-mix(in srgb, var(--good) 12%, transparent); }
+.adv-rec-copy-ic { flex: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .dot.running::after,

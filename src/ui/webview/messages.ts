@@ -115,4 +115,16 @@ export interface UndoMessage {
   fieldId: string;
 }
 
-export type WebviewToHostMessage = ReadyMessage | WriteFieldMessage | ToggleMessage | UndoMessage;
+/** Client → host: an Advisor tip's "Copy" action was clicked — `text` is the
+ *  prompt already formatted for pasting into a chat. */
+export interface AdvisorTipActionMessage {
+  type: "advisor-copy";
+  text: string;
+}
+
+export type WebviewToHostMessage =
+  | ReadyMessage
+  | WriteFieldMessage
+  | ToggleMessage
+  | UndoMessage
+  | AdvisorTipActionMessage;
