@@ -15,8 +15,12 @@ function severityClass(percent: number): "good" | "warn" | "crit" {
 /** Vitals header: live pulse, session name + id, model chip, a full-width context
  *  meter (used/window tokens + %), and a single-row stat strip (tokens, cost, agents,
  *  burn rate). A horizontal meter reads the absolute + relative numbers in one line,
- *  where the previous ring could only fit the percent and needed a separate line below it. */
-export function renderVitals(s: SessionViewModel): string {
+ *  where the previous ring could only fit the percent and needed a separate line below it.
+ *  `.v-top` also doubles as the click/keyboard toggle for the session's collapsible body
+ *  (Orchestration/Token Economics/Activity) — `expanded` is the initial `aria-expanded`
+ *  the caller (`main.ts`) has already resolved for this render (live-based default, or a
+ *  remembered manual override), not state this function owns. */
+export function renderVitals(s: SessionViewModel, expanded: boolean): string {
   const dotClass = s.running ? "dot running" : s.live ? "dot live" : "dot idle";
   const statusLabel = s.running ? "working" : s.live ? "live" : "idle";
   const ctxPct = `${s.contextPrecise ? "" : "~"}${s.contextPercent}%`;
@@ -41,7 +45,7 @@ export function renderVitals(s: SessionViewModel): string {
 
   return `
   <div class="vitals">
-    <div class="v-top">
+    <div class="v-top" role="button" tabindex="0" aria-expanded="${expanded}">
       <span class="${dotClass}" aria-hidden="true" title="${statusLabel}"></span>
       <div class="v-head">
         <div class="v-name" title="${esc(s.cwd)}">${esc(name)}</div>

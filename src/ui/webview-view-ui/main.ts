@@ -3,6 +3,7 @@
 // by sidebar-view-provider.ts's HTML. Renders the session view-model the host
 // pushes on every store change.
 import type { SessionViewModel, SidebarViewModel } from "../webview-view/sidebar-messages";
+import { esc } from "./dom-utils";
 import { onHostMessage, postToHost } from "./sidebar-vscode-api";
 import { renderActivity } from "./render-activity";
 import { renderAgents } from "./render-agents";
@@ -19,11 +20,23 @@ const openAgents = new Set<string>();
 // sessionId (one Activity section per session) — collapsed by default, so a
 // sessionId only ever appears here once the user has explicitly opened it.
 const openActivity = new Set<string>();
+// Explicit user overrides of a session's collapsed/expanded body, keyed by
+// sessionId. A session with no entry here falls back to `!s.live` (a dead
+// transcript collapses to its vitals row by default; anything still live —
+// running or waiting-for-input — stays expanded), so the currently-active
+// session isn't buried under detail from old ones. Unlike `openAgents`/
+// `openActivity`, this is consulted directly in `renderSession` while
+// building the HTML string, not patched onto the DOM afterward — simpler,
+// since the collapsed/expanded class is session-specific from the start
+// rather than a uniform "closed by default" template.
+const sessionOverrides = new Map<string, boolean>();
 
 function renderSession(s: SessionViewModel): string {
-  return `<section class="cv-session">${renderVitals(s)}${renderAgents(s)}${renderEconomics(s)}${renderActivity(
-    s
-  )}</section>`;
+  const collapsed = sessionOverrides.get(s.sessionId) ?? !s.live;
+  return `<section class="cv-session${collapsed ? " collapsed" : ""}" data-session="${esc(s.sessionId)}">${renderVitals(
+    s,
+    !collapsed
+  )}<div class="cv-body">${renderAgents(s)}${renderEconomics(s)}${renderActivity(s)}</div></section>`;
 }
 
 function render(root: HTMLElement, vm: SidebarViewModel): void {
@@ -58,6 +71,12 @@ function render(root: HTMLElement, vm: SidebarViewModel): void {
     const activity = root.querySelector(`.activity[data-session="${CSS.escape(id)}"]`);
     activity?.classList.add("open");
     activity?.querySelector(".act-toggle")?.setAttribute("aria-expanded", "true");
+  }
+
+  for (const id of [...sessionOverrides.keys()]) {
+    if (!sessionIds.has(id)) {
+      sessionOverrides.delete(id);
+    }
   }
 }
 
@@ -106,6 +125,31 @@ function toggleActivity(header: HTMLElement): void {
   header.setAttribute("aria-expanded", String(nowOpen));
 }
 
+/** Flips a session's collapsed/expanded body (Orchestration/Token Economics/
+ *  Activity) and remembers the choice in `sessionOverrides`, overriding the
+ *  `!s.live` default until the session disappears from the view-model. Every
+ *  session's `.v-top` is a valid toggle target (unlike an agent row, the body
+ *  always has at least the "no sub-agents spawned yet" placeholder). */
+function toggleSession(header: HTMLElement): void {
+  const section = header.closest(".cv-session");
+  if (!section) {
+    return;
+  }
+  const id = section.getAttribute("data-session");
+  if (!id) {
+    return;
+  }
+  // Source of truth is the override map once one exists for this id (matching
+  // `toggleAgentRow`/`toggleActivity`, which read their own Set rather than the
+  // DOM); the classList is only consulted as the live-based default's stand-in
+  // the first time a session is toggled, before any override has been recorded.
+  const currentlyCollapsed = sessionOverrides.get(id) ?? section.classList.contains("collapsed");
+  const nowCollapsed = !currentlyCollapsed;
+  sessionOverrides.set(id, nowCollapsed);
+  section.classList.toggle("collapsed", nowCollapsed);
+  header.setAttribute("aria-expanded", String(!nowCollapsed));
+}
+
 function mount(): void {
   const root = document.getElementById("root");
   if (!root) {
@@ -122,6 +166,11 @@ function mount(): void {
   // state push keeps it open.
   root.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
+    const vtop = target.closest(".v-top");
+    if (vtop) {
+      toggleSession(vtop as HTMLElement);
+      return;
+    }
     const row = target.closest(".agent-row");
     if (row) {
       toggleAgentRow(row as HTMLElement);
@@ -137,6 +186,12 @@ function mount(): void {
       return;
     }
     const target = event.target as HTMLElement;
+    const vtop = target.closest(".v-top");
+    if (vtop) {
+      event.preventDefault();
+      toggleSession(vtop as HTMLElement);
+      return;
+    }
     const row = target.closest(".agent-row");
     if (row) {
       event.preventDefault(); // stop Space from scrolling the sidebar
