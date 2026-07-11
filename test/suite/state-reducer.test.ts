@@ -462,6 +462,53 @@ describe("state-reducer", () => {
       assert.equal(agent.tokens.outputTokens, 75);
     });
 
+    it("marks a sub-agent completed from its own stop_reason, independent of any parent tool_result", () => {
+      const state = emptySessionState("session-1", "/Users/test/project");
+      const line: ParsedLine = {
+        type: "assistant",
+        sessionId: "agent-123",
+        cwd: "/Users/test/project",
+        raw: { type: "assistant", message: { usage: { input_tokens: 1, output_tokens: 1 }, stop_reason: "end_turn" } },
+      };
+
+      const result = reduceSubAgentLine(state, "agent-e2", line);
+      assert.equal(result.subagents.get("agent-e2")?.status, "completed");
+    });
+
+    it("leaves status running while stop_reason is tool_use (more calls coming)", () => {
+      const state = emptySessionState("session-1", "/Users/test/project");
+      const line: ParsedLine = {
+        type: "assistant",
+        sessionId: "agent-123",
+        cwd: "/Users/test/project",
+        raw: { type: "assistant", message: { usage: { input_tokens: 1, output_tokens: 1 }, stop_reason: "tool_use" } },
+      };
+
+      const result = reduceSubAgentLine(state, "agent-t2", line);
+      assert.equal(result.subagents.get("agent-t2")?.status, "running");
+    });
+
+    it("never flips a completed sub-agent back to running from a later line", () => {
+      let state = emptySessionState("session-1", "/Users/test/project");
+      const doneLine: ParsedLine = {
+        type: "assistant",
+        sessionId: "agent-123",
+        cwd: "/Users/test/project",
+        raw: { type: "assistant", message: { stop_reason: "end_turn" } },
+      };
+      state = reduceSubAgentLine(state, "agent-e3", doneLine);
+      assert.equal(state.subagents.get("agent-e3")?.status, "completed");
+
+      const laterLine: ParsedLine = {
+        type: "assistant",
+        sessionId: "agent-123",
+        cwd: "/Users/test/project",
+        raw: { type: "assistant", message: { stop_reason: null } },
+      };
+      state = reduceSubAgentLine(state, "agent-e3", laterLine);
+      assert.equal(state.subagents.get("agent-e3")?.status, "completed");
+    });
+
     it("should ignore non-assistant lines", () => {
       const state = emptySessionState("session-1", "/Users/test/project");
       const line: ParsedLine = {

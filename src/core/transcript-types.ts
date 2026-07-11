@@ -31,6 +31,10 @@ export interface AssistantMessage {
   model?: string;
   usage?: RawAssistantUsage;
   content?: unknown;
+  /** `"tool_use"` means this turn is requesting more tool calls (not done
+   *  yet); any other non-null value (`"end_turn"`, `"max_tokens"`, ...) is a
+   *  real, model-reported terminal signal for this turn. */
+  stop_reason?: string | null;
 }
 
 /** Shape of a user transcript line's `message` field (carries `tool_result` blocks). */

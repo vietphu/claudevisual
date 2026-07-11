@@ -1,6 +1,6 @@
 import { extractToolUseBlocks, lineTimestamp, pushRecentToolCall } from "./tool-use-parsing";
 import { AssistantMessage, ParsedLine } from "./transcript-types";
-import { addUsage, emptySubAgentState, SessionState, SubAgentState } from "./types";
+import { addUsage, emptySubAgentState, SessionState, SubAgentState, SubAgentStatus } from "./types";
 
 /**
  * Reduces one line read from a sub-agent's own transcript
@@ -51,9 +51,29 @@ export function reduceSubAgentLine(state: SessionState, agentId: string, line: P
     tokens: nextTokens,
     model,
     recentToolCalls,
+    status: nextStatus(existing.status, message.stop_reason),
     lastUpdatedAt: Date.now(),
   };
   const subagents = new Map(state.subagents);
   subagents.set(agentId, updated);
   return { ...state, subagents, lastUpdatedAt: Date.now() };
+}
+
+/**
+ * Secondary, independent completion signal — sticky once "completed"
+ * (never flips back to "running"), same as the parent-side `tool_result`
+ * match in `reduceUser`. Needed because that match requires the parent's
+ * transcript line to still be inside the tailer's tail-window (see
+ * `PRIME_TAIL_BYTES` in `jsonl-tailer.ts`): once the parent transcript grows
+ * past it, an agent that finished long ago would otherwise be stuck
+ * "running" forever. `stop_reason` on this agent's OWN last-seen turn is a
+ * real, model-reported signal, not a guess — `"tool_use"` means more tool
+ * calls are coming (not done yet); any other non-null value means this was
+ * its final turn.
+ */
+function nextStatus(current: SubAgentStatus, stopReason: string | null | undefined): SubAgentStatus {
+  if (current === "completed") {
+    return "completed";
+  }
+  return stopReason && stopReason !== "tool_use" ? "completed" : current;
 }
