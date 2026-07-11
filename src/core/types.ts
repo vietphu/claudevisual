@@ -28,6 +28,11 @@ export type PermissionMode = "normal" | "acceptEdits" | "bypassPermissions" | "p
 export interface SessionState {
   sessionId: string;
   cwd: string;
+  /** Claude Code's own auto-generated session title (`ai-title` transcript
+   *  line), re-written periodically as the conversation evolves. Undefined
+   *  until the first such line is seen — display falls back to the cwd's
+   *  basename until then. */
+  title: string | undefined;
   model: string | undefined;
   /** Sum of usage across every assistant turn this session — a total-spend proxy. */
   cumulativeUsage: TokenUsage;
@@ -104,6 +109,7 @@ export function emptySessionState(sessionId: string, cwd: string): SessionState 
   return {
     sessionId,
     cwd,
+    title: undefined,
     model: undefined,
     cumulativeUsage: emptyUsage(),
     lastTurnContextTokens: 0,

@@ -32,6 +32,8 @@ export function reduceSessionState(state: SessionState, line: ParsedLine): Sessi
       return reduceUser(withCwd, line);
     case "mode":
       return reduceMode(withCwd, line);
+    case "ai-title":
+      return reduceAiTitle(withCwd, line);
     default:
       return withCwd;
   }
@@ -151,6 +153,17 @@ function reduceMode(state: SessionState, line: ParsedLine): SessionState {
     return state;
   }
   return { ...state, permissionMode: mode, lastUpdatedAt: Date.now() };
+}
+
+/** Claude Code's own auto-generated session title, re-written periodically
+ *  (see `SessionState.title`) — never bumps `lastUpdatedAt`, since this line
+ *  carries no activity signal of its own. */
+function reduceAiTitle(state: SessionState, line: ParsedLine): SessionState {
+  const title = line.raw.aiTitle;
+  if (typeof title !== "string" || title.length === 0) {
+    return state;
+  }
+  return { ...state, title };
 }
 
 interface ToolUseReduction {

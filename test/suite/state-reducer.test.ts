@@ -179,6 +179,46 @@ describe("state-reducer", () => {
       assert.equal(result.permissionMode, "acceptEdits");
     });
 
+    it("should handle ai-title line and set title", () => {
+      const state = emptySessionState("session-1", "/Users/test/project");
+      const line: ParsedLine = {
+        type: "ai-title",
+        sessionId: "session-1",
+        raw: {
+          type: "ai-title",
+          sessionId: "session-1",
+          aiTitle: "Fix flaky login test",
+        },
+      };
+
+      const result = reduceSessionState(state, line);
+      assert.equal(result.title, "Fix flaky login test");
+    });
+
+    it("overwrites an earlier title with a later ai-title line (re-titled as the conversation evolves)", () => {
+      let state = emptySessionState("session-1", "/Users/test/project");
+      state = reduceSessionState(state, {
+        type: "ai-title",
+        raw: { type: "ai-title", aiTitle: "Investigate login bug" },
+      });
+      assert.equal(state.title, "Investigate login bug");
+
+      state = reduceSessionState(state, {
+        type: "ai-title",
+        raw: { type: "ai-title", aiTitle: "Fix flaky login test" },
+      });
+      assert.equal(state.title, "Fix flaky login test");
+    });
+
+    it("ignores an ai-title line with a missing or empty aiTitle", () => {
+      const state = emptySessionState("session-1", "/Users/test/project");
+      const result = reduceSessionState(state, {
+        type: "ai-title",
+        raw: { type: "ai-title", aiTitle: "" },
+      });
+      assert.equal(result.title, undefined);
+    });
+
     it("does not create a sub-agent entry from an Agent tool_use block alone", () => {
       // Identity (type, spawn reason, parent) comes only from the agent's own
       // `.meta.json` sidecar — see `applySubagentMetaOverlay` — never from the

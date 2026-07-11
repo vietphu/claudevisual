@@ -97,6 +97,9 @@ export interface SessionViewModel {
   sessionId: string;
   shortId: string;
   cwd: string;
+  /** Claude Code's own auto-generated session title, or undefined until the
+   *  first `ai-title` transcript line has been seen. */
+  title?: string;
   model?: string;
   running: boolean;
   live: boolean;

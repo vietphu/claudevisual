@@ -22,6 +22,14 @@ export function renderVitals(s: SessionViewModel): string {
   const ctxPct = `${s.contextPrecise ? "" : "~"}${s.contextPercent}%`;
   const sev = severityClass(s.contextPercent);
   const ctxDetail = `${formatTokens(s.contextUsedTokens)} / ${formatTokens(s.contextWindowTokens)} tokens`;
+  const project = basename(s.cwd);
+  const name = s.title || project || s.shortId;
+  // Subtitle repeats the project name only when the headline is showing
+  // something else (the ai-title) — otherwise it'd just echo the headline.
+  const subtitle =
+    project && name !== project
+      ? `${project} · ${s.shortId} · ${statusLabel}`
+      : `${s.shortId} · ${statusLabel}`;
   const cost =
     s.costUsd !== undefined
       ? `<div class="stat"><b class="good">${s.costEstimated ? "~" : ""}${formatUsd(s.costUsd)}</b><u>cost${s.costEstimated ? " · est" : ""}</u></div>`
@@ -36,8 +44,8 @@ export function renderVitals(s: SessionViewModel): string {
     <div class="v-top">
       <span class="${dotClass}" aria-hidden="true" title="${statusLabel}"></span>
       <div class="v-head">
-        <div class="v-name" title="${esc(s.cwd)}">${esc(basename(s.cwd) || s.shortId)}</div>
-        <div class="v-id">${esc(s.shortId)} · ${statusLabel}</div>
+        <div class="v-name" title="${esc(s.cwd)}">${esc(name)}</div>
+        <div class="v-id">${esc(subtitle)}</div>
       </div>
       ${modelChip(s.model)}
     </div>

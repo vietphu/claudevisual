@@ -29,6 +29,16 @@ describe("session-view-model", () => {
     assert.ok(vm.costUsd !== undefined && vm.costUsd > 0);
   });
 
+  it("passes the reducer-derived title through, undefined when never set", () => {
+    const withTitle = emptySessionState("session-1", "/Users/test/proj");
+    withTitle.title = "Fix flaky login test";
+    const withoutTitle = emptySessionState("session-2", "/Users/test/proj");
+
+    const [vmWithTitle, vmWithoutTitle] = toSidebarViewModel([withTitle, withoutTitle]).sessions;
+    assert.equal(vmWithTitle.title, "Fix flaky login test");
+    assert.equal(vmWithoutTitle.title, undefined);
+  });
+
   it("prefers precise context % and cost when present", () => {
     const state = emptySessionState("s1", "/p");
     state.preciseContextPercent = 87.6;

@@ -31,6 +31,7 @@ function toSessionViewModel(state: SessionState): SessionViewModel {
     sessionId: state.sessionId,
     shortId: state.sessionId.slice(0, 8),
     cwd: state.cwd,
+    title: state.title,
     model: state.model,
     running: state.running,
     live: state.isLive,
