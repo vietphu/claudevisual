@@ -16,7 +16,7 @@ describe("session-view-model", () => {
       cacheCreationInputTokens: 10,
       cacheReadInputTokens: 40,
     };
-    state.lastTurnContextTokens = 100_000; // 50% of a 200k window
+    state.lastTurnContextTokens = 500_000; // 50% of claude-sonnet-5's published 1M window
 
     const vm = toSidebarViewModel([state]).sessions[0];
     assert.equal(vm.shortId, "session-");

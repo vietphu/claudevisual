@@ -73,6 +73,14 @@ export interface SessionState {
    * approximation used as a fallback when the wrap isn't installed.
    */
   preciseContextPercent: number | undefined;
+  /**
+   * The model's actual context window size (tokens) from the statusLine payload's
+   * `context_window.context_window_size`, present only when the wrap is installed.
+   * Varies per session (e.g. extended-context betas), so once known it replaces the
+   * hardcoded per-model guess `resolveContextPercent`'s fallback path uses — even on
+   * turns where `preciseContextPercent` itself is momentarily unavailable.
+   */
+  preciseContextWindowSize: number | undefined;
   /** Precise total session cost (USD) from the statusLine payload's `cost.total_cost_usd`. */
   preciseCostUsd: number | undefined;
   /** Timestamp (ms) `preciseContextPercent`/`preciseCostUsd` were last updated. */
@@ -103,6 +111,7 @@ export function emptySessionState(sessionId: string, cwd: string): SessionState 
     lastHookEvent: undefined,
     lastHookEventAt: undefined,
     preciseContextPercent: undefined,
+    preciseContextWindowSize: undefined,
     preciseCostUsd: undefined,
     preciseStatusLineUpdatedAt: undefined,
     burnRatePerMin: undefined,

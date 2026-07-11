@@ -19,13 +19,17 @@ export interface HookEventRecord {
 }
 
 /** One parsed snapshot of `statusline-cache.json` — the precise
- *  `context_window.used_percentage` / `cost.total_cost_usd` overlay Phase 4's
- *  statusline wrap provides, in place of the JSONL-derived approximation. */
+ *  `context_window.{used_percentage,context_window_size}` / `cost.total_cost_usd`
+ *  overlay Phase 4's statusline wrap provides, in place of the JSONL-derived approximation. */
 export interface StatuslineCacheRecord {
   sessionId: string;
   ts: number;
   contextUsedPercent: number | undefined;
   costUsd: number | undefined;
+  /** The model's actual context window size (tokens) from
+   *  `context_window.context_window_size` — varies per session (e.g. extended-context
+   *  betas), so it must be read from this payload rather than guessed per model name. */
+  contextWindowSize: number | undefined;
 }
 
 /** Hook events that mean "Claude is actively working" on this session. */
@@ -102,8 +106,12 @@ export function parseStatuslineCache(raw: string): StatuslineCacheRecord | undef
     const contextUsedPercent =
       typeof contextWindow?.["used_percentage"] === "number" ? (contextWindow["used_percentage"] as number) : undefined;
     const costUsd = typeof cost?.["total_cost_usd"] === "number" ? (cost["total_cost_usd"] as number) : undefined;
+    const contextWindowSize =
+      typeof contextWindow?.["context_window_size"] === "number"
+        ? (contextWindow["context_window_size"] as number)
+        : undefined;
 
-    return { sessionId, ts: Date.now(), contextUsedPercent, costUsd };
+    return { sessionId, ts: Date.now(), contextUsedPercent, costUsd, contextWindowSize };
   } catch {
     return undefined;
   }

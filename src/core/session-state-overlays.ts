@@ -31,6 +31,7 @@ export function applyStatuslineOverlay(
   return {
     ...base,
     preciseContextPercent: record.contextUsedPercent ?? base.preciseContextPercent,
+    preciseContextWindowSize: record.contextWindowSize ?? base.preciseContextWindowSize,
     preciseCostUsd: record.costUsd ?? base.preciseCostUsd,
     preciseStatusLineUpdatedAt: record.ts,
     lastUpdatedAt: Math.max(base.lastUpdatedAt, record.ts),

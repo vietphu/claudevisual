@@ -26,9 +26,28 @@ describe("session-state-overlays", () => {
   describe("applyStatuslineOverlay", () => {
     it("overlays precise context% and cost", () => {
       const previous = emptySessionState("s1", "/p");
-      const state = applyStatuslineOverlay(previous, { sessionId: "s1", ts: 100, contextUsedPercent: 42, costUsd: 1.5 });
+      const state = applyStatuslineOverlay(previous, {
+        sessionId: "s1",
+        ts: 100,
+        contextUsedPercent: 42,
+        costUsd: 1.5,
+        contextWindowSize: 967_000,
+      });
       assert.equal(state.preciseContextPercent, 42);
       assert.equal(state.preciseCostUsd, 1.5);
+      assert.equal(state.preciseContextWindowSize, 967_000);
+    });
+
+    it("keeps a previously learned window size when a later tick omits it", () => {
+      const previous = { ...emptySessionState("s1", "/p"), preciseContextWindowSize: 967_000 };
+      const state = applyStatuslineOverlay(previous, {
+        sessionId: "s1",
+        ts: 200,
+        contextUsedPercent: 50,
+        costUsd: undefined,
+        contextWindowSize: undefined,
+      });
+      assert.equal(state.preciseContextWindowSize, 967_000);
     });
   });
 
