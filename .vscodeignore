@@ -8,6 +8,7 @@ test/**
 test/fixtures/**
 .vscode/**
 .claude/**
+.github/**
 plans/**
 docs/**
 
@@ -21,6 +22,10 @@ scripts/**
 # Misc project files not needed at runtime.
 overview.md
 package-lock.json
+
+# Icon source — only the rendered resources/icon.png ships (referenced by
+# package.json's "icon" field); the SVG it was rendered from is repo-only.
+resources/marketplace-icon.svg
 
 # Dependencies — no runtime "dependencies" are declared (everything is
 # bundled by esbuild), so nothing under node_modules ships regardless;

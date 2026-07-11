@@ -54,10 +54,19 @@ found. To enable it:
 
 ### Version policy
 
-Stays on `0.x` (see `plans/20260710-0900-claudevisual-vscode-extension/phase-07-packaging.md`)
-until the settings.json safe-write path (`json-merge.ts`, `config-writer.ts`,
-`statusline-wrap.cjs`) has real multi-machine use. `--force` on install means
-you don't need to bump the version between local reinstalls.
+Stays on `0.x` until the settings.json safe-write path (`json-merge.ts`,
+`config-writer.ts`, `statusline-wrap.cjs`) has real multi-machine use — see
+`plans/20260710-0900-claudevisual-vscode-extension/phase-07-packaging.md` for
+the original reasoning. `--force` on install means you don't need to bump the
+version between local reinstalls.
+
+As of 0.1.0, ClaudeVisual is public on GitHub and submitted to the Marketplace
+despite that path only being proven on this machine's own (ClaudeKit-layered)
+`settings.json` so far — the trade-off is deliberate: the safe-write path is
+unit-tested and gated by a backup + atomic write-then-rename + rollback design
+(see `docs/manual-live-checklist.md`), and going public is what actually
+surfaces other machines' `settings.json` shapes. Bug reports on that path are
+the main thing to watch closely post-launch.
 
 ## Turning on precise/low-latency data sources
 

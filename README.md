@@ -1,5 +1,8 @@
 # ClaudeVisual
 
+[![CI](https://github.com/vietphu/claudevisual/actions/workflows/ci.yml/badge.svg)](https://github.com/vietphu/claudevisual/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Real-time visibility into [Claude Code](https://claude.com/product/claude-code) sessions,
 right inside VS Code — plus in-editor editing of Claude Code's own config.
 
@@ -12,8 +15,10 @@ token/cost overhead.
 ## Features
 
 - **Status bar** — active model, context-window usage, permission mode, running indicator.
-- **Sidebar TreeView** — per-session hierarchy: sub-agents, skills invoked, recent tool calls.
-  Concurrent sessions in the same working directory render as separate siblings, never merged.
+- **Sidebar webview** — per-session vitals (tokens, cost, burn rate, Efficiency Advisor grade)
+  collapsed to one row by default, expandable into the full agent tree: sub-agents, skills
+  invoked, a tool-call feed, and a files-touched panel. Concurrent sessions in the same working
+  directory render as separate siblings, never merged.
 - **Dashboard webview** — hand-rolled token/cost/context-usage charts fed by incremental
   updates, plus a dual-scope (global + project) config-editing form with diff/confirm and Undo
   on every write.
@@ -37,12 +42,22 @@ chatty hooks, no read-modify-write on hot paths.
 
 ## Installation
 
-Not yet published to the VS Code Marketplace (staying on `0.x` until the settings.json
-safe-write path has real multi-machine use — see
-[the packaging phase notes](plans/20260710-0900-claudevisual-vscode-extension/phase-07-packaging.md)).
-Until then, build and install locally:
+Install "ClaudeVisual" from the
+[VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=dinhphu.claudevisual),
+or from the Extensions view (`Cmd+Shift+X`) by searching "ClaudeVisual".
+
+Still on `0.x` — the settings.json safe-write path (hooks install, StatusLine wrap, config-form
+writes) is unit-tested and manually walked against real sessions (see
+[docs/manual-live-checklist.md](docs/manual-live-checklist.md)), but hasn't yet seen wide
+multi-machine use. If it misbehaves against your `settings.json` shape, please
+[open an issue](https://github.com/vietphu/claudevisual/issues) — every write goes through a
+backup + atomic write-then-rename + rollback path, so worst case is an Undo, not data loss.
+
+To build and install from source instead:
 
 ```bash
+git clone https://github.com/vietphu/claudevisual.git
+cd claudevisual
 npm install
 npm run reinstall   # builds, packages, and force-installs into your default VS Code profile
 ```
@@ -82,14 +97,15 @@ Claude Code session.
 
 ```
 src/
-├── core/          # JSONL tailing, transcript parsing, session state reduction/store
-├── hooks/         # Opt-in hooks + statusline wrap; safe settings.json read-modify-write
-├── config/        # Settings schema, path resolution, config-writer (dual-scope)
+├── core/               # JSONL tailing, transcript parsing, session state reduction/store
+├── hooks/              # Opt-in hooks + statusline wrap; safe settings.json read-modify-write
+├── config/             # Settings schema, path resolution, config-writer (dual-scope)
 ├── ui/
-│   ├── tree-view/     # Sidebar TreeView
-│   ├── webview/       # Dashboard host-side (panel, charts, config form)
-│   └── webview-ui/    # Dashboard browser-side bundle
-└── extension.ts   # Composition root
+│   ├── webview-view/      # Sidebar webview host-side (view provider, session view-model)
+│   ├── webview-view-ui/   # Sidebar webview browser-side bundle (vitals, agent tree, advisor)
+│   ├── webview/           # Dashboard host-side (panel, charts, config form)
+│   └── webview-ui/        # Dashboard browser-side bundle
+└── extension.ts        # Composition root
 ```
 
 Full implementation plan and phase-by-phase design notes:

@@ -1,0 +1,39 @@
+name: Bug report
+description: Something in ClaudeVisual isn't working as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened instead
+    validations:
+      required: true
+  - type: input
+    id: vscode-version
+    attributes:
+      label: VS Code version
+      placeholder: "Help > About"
+    validations:
+      required: true
+  - type: input
+    id: extension-version
+    attributes:
+      label: ClaudeVisual version
+    validations:
+      required: true
+  - type: textarea
+    id: settings-shape
+    attributes:
+      label: Relevant settings.json shape (redact secrets)
+      description: >-
+        Only needed if the bug touches hooks, statusline wrap, or the
+        config-editing form. Redact any API keys or personal paths.
+      render: json
+    validations:
+      required: false

@@ -2,8 +2,9 @@
   "name": "claudevisual",
   "displayName": "ClaudeVisual",
   "description": "Real-time visibility and config tuning for Claude Code sessions inside VS Code",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "dinhphu",
+  "icon": "resources/icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -17,7 +18,19 @@
     "vscode": "^1.90.0"
   },
   "categories": [
+    "Visualization",
     "Other"
+  ],
+  "keywords": [
+    "claude",
+    "claude code",
+    "anthropic",
+    "ai",
+    "agent",
+    "observability",
+    "dashboard",
+    "tokens",
+    "cost"
   ],
   "main": "./dist/extension.js",
   "activationEvents": [
@@ -94,6 +107,10 @@
         }
       ]
     }
+  },
+  "galleryBanner": {
+    "color": "#1a1b26",
+    "theme": "dark"
   },
   "scripts": {
     "compile": "tsc --noEmit -p . && node esbuild.js",

@@ -5,6 +5,10 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-07-11
+
+First public release: source-available on GitHub and submitted to the VS Code Marketplace.
+
 ### Added
 - Sidebar redesigned from a flat native `TreeView` into a `WebviewView`: agent tree with
   parent→child nesting, per-agent model/tokens/duration, token + cache economics, an

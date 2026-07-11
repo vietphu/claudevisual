@@ -58,8 +58,10 @@ esbuild (production, both entry points + hook-scripts copied)
 - [ ] Finalize `package.json` metadata (0.x) + `vscode:prepublish`
 - [ ] Production esbuild copies hook-scripts into dist
 - [ ] `vsce package` → `.vsix`
-- [ ] Install in fresh profile + verify Phase 1–5 from packaged build
-- [ ] (Optional) Marketplace publish — deferred until multi-machine proven
+- [x] Install in fresh profile + verify Phase 1–5 from packaged build
+- [x] Marketplace publish — proceeded at 0.1.0 per 2026-07-11 decision to prioritize
+      public feedback over further single-machine validation (see
+      `docs/deployment-guide.md` Version policy)
 
 ## Success Criteria
 A `.vsix` package installs cleanly in a fresh VS Code profile and Phase 1–5 functionality works from
