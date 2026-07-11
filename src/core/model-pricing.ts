@@ -1,4 +1,3 @@
-import { ModelTokenSlice } from "./token-economics";
 import { SessionState, TokenUsage } from "./types";
 
 /**
@@ -8,17 +7,13 @@ import { SessionState, TokenUsage } from "./types";
  * hard-coded prices go stale, so callers must label any figure derived here as
  * "est." and always prefer `preciseCostUsd` when present.
  *
- * Two rate views live here:
- *  - `blendedPerMTok` — one flat rate over all buckets, for the legacy
- *    economics rollup which only tracks a single blended token total per model.
- *  - the split `*PerMTok` fields — real Anthropic pricing differs ~10× across
- *    input / output / cache-write / cache-read, so when the raw 4-bucket usage is
- *    available (from `SessionState`) we price each bucket separately for a much
- *    sharper estimate + a per-bucket breakdown.
+ * Real Anthropic pricing differs ~10× across input / output / cache-write /
+ * cache-read, so every consumer prices the raw 4-bucket usage (from
+ * `SessionState`) per bucket rather than collapsing to one flat rate — a
+ * blended rate applied to a cache-read-heavy session (the common case for long
+ * agentic sessions) would overstate cost substantially.
  */
 interface ModelRate {
-  /** Blended USD per 1M tokens (legacy single-total path). */
-  blendedPerMTok: number;
   /** Split USD per 1M tokens per bucket. Cache-write is a premium over base
    *  input; cache-read is a deep discount — the whole point of pricing the
    *  buckets separately is to make cache churn visible as real money. */
@@ -28,17 +23,17 @@ interface ModelRate {
   cacheReadPerMTok: number;
 }
 
-// Split rates below are the published USD/1M-token prices per bucket; `blended`
-// keeps the legacy single-rate view. cacheWrite ≈ 1.25× input, cacheRead ≈ 0.1×
-// input — that spread is exactly what makes cache churn show up as real cost.
+// Published USD/1M-token prices per bucket. cacheWrite ≈ 1.25× input,
+// cacheRead ≈ 0.1× input — that spread is exactly what makes cache churn show
+// up as real cost.
 const RATES: Array<{ match: string; rate: ModelRate }> = [
-  { match: "opus", rate: { blendedPerMTok: 9.0, inputPerMTok: 15.0, outputPerMTok: 75.0, cacheWritePerMTok: 18.75, cacheReadPerMTok: 1.5 } },
-  { match: "sonnet", rate: { blendedPerMTok: 4.5, inputPerMTok: 3.0, outputPerMTok: 15.0, cacheWritePerMTok: 3.75, cacheReadPerMTok: 0.3 } },
-  { match: "haiku", rate: { blendedPerMTok: 1.2, inputPerMTok: 1.0, outputPerMTok: 5.0, cacheWritePerMTok: 1.25, cacheReadPerMTok: 0.1 } },
-  { match: "fable", rate: { blendedPerMTok: 4.5, inputPerMTok: 3.0, outputPerMTok: 15.0, cacheWritePerMTok: 3.75, cacheReadPerMTok: 0.3 } },
+  { match: "opus", rate: { inputPerMTok: 15.0, outputPerMTok: 75.0, cacheWritePerMTok: 18.75, cacheReadPerMTok: 1.5 } },
+  { match: "sonnet", rate: { inputPerMTok: 3.0, outputPerMTok: 15.0, cacheWritePerMTok: 3.75, cacheReadPerMTok: 0.3 } },
+  { match: "haiku", rate: { inputPerMTok: 1.0, outputPerMTok: 5.0, cacheWritePerMTok: 1.25, cacheReadPerMTok: 0.1 } },
+  { match: "fable", rate: { inputPerMTok: 3.0, outputPerMTok: 15.0, cacheWritePerMTok: 3.75, cacheReadPerMTok: 0.3 } },
 ];
 
-const DEFAULT_RATE: ModelRate = { blendedPerMTok: 4.5, inputPerMTok: 3.0, outputPerMTok: 15.0, cacheWritePerMTok: 3.75, cacheReadPerMTok: 0.3 };
+const DEFAULT_RATE: ModelRate = { inputPerMTok: 3.0, outputPerMTok: 15.0, cacheWritePerMTok: 3.75, cacheReadPerMTok: 0.3 };
 
 function rateFor(model: string): ModelRate | undefined {
   const lower = model.toLowerCase();
@@ -48,26 +43,6 @@ function rateFor(model: string): ModelRate | undefined {
     }
   }
   return model === "unknown" ? undefined : DEFAULT_RATE;
-}
-
-/**
- * Estimates total session cost (USD) from the per-model BLENDED token rollup.
- * Models with no known rate (e.g. `"unknown"`) contribute their tokens but no
- * cost, so the estimate is conservative rather than fabricated. Returns
- * undefined when nothing could be priced at all.
- */
-export function estimateCostUsd(byModel: ModelTokenSlice[]): number | undefined {
-  let cost = 0;
-  let priced = false;
-  for (const slice of byModel) {
-    const rate = rateFor(slice.model);
-    if (!rate) {
-      continue;
-    }
-    priced = true;
-    cost += (slice.tokens / 1_000_000) * rate.blendedPerMTok;
-  }
-  return priced ? cost : undefined;
 }
 
 /** Per-bucket USD breakdown of an estimated cost. */
@@ -95,9 +70,9 @@ function priceUsage(usage: TokenUsage, r: ModelRate): CostBreakdown {
 
 /**
  * Prices raw 4-bucket usage per model with the split rates and sums into one
- * breakdown. Unpriceable models (`"unknown"`) contribute nothing. Returns
- * undefined when nothing could be priced — same conservative contract as
- * {@link estimateCostUsd}.
+ * breakdown. Unpriceable models (`"unknown"`) contribute nothing but don't
+ * null out the whole estimate. Returns undefined when nothing could be priced
+ * at all.
  */
 export function estimateCostFromUsage(
   entries: Array<{ model: string | undefined; usage: TokenUsage }>
