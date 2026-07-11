@@ -3,6 +3,28 @@
 All notable changes to this project are documented here. Format loosely follows
 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [Unreleased]
+
+### Added
+- Sidebar redesigned from a flat native `TreeView` into a `WebviewView`: agent tree with
+  parent→child nesting, per-agent model/tokens/duration, token + cache economics, an
+  activity heartbeat, a tool-call feed, and a files-touched panel.
+- Token burn-rate (`~NK/min`) sampled on a bounded ring, shown in vitals; `—` before the
+  second sample or once a session goes idle.
+- Honest `N calls` progress chip on running agents — no fabricated percentage.
+
+### Fixed
+- Sub-agent detection matched the wrong tool_use name (`Task`) — real transcripts name the
+  spawn tool `Agent`; every sub-agent row, and everything built on top of it, was silently
+  never populating.
+- Sub-agent identity/nesting was keyed off the spawning tool_use's `id`, which is not the
+  child's real agentId in real transcripts — every real spawn produced two split ghost rows
+  (one correctly typed with 0 tokens, one with real tokens stuck at type `"unknown"`), and
+  nesting never linked. Re-keyed around each sub-agent's `agent-<agentId>.meta.json` sidecar
+  (`agentType`, `description`, `parentAgentId`, `toolUseId`), which is the actual source of
+  truth; re-verified end-to-end against real transcripts. See
+  `plans/20260710-2005-sidebar-orchestration-webview/phase-04-nesting-extras.md`.
+
 ## [0.0.1] — 2026-07-10
 
 Initial implementation, all 7 planned phases.

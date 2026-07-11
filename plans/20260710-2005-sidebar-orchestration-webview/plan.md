@@ -66,7 +66,7 @@ dependency — the prior plan is done.
 | 1 | [Webview Shell](./phase-01-webview-shell.md) | ✅ Completed (code; live-verify pending) | — | Low |
 | 2 | [Reducer + Economics](./phase-02-reducer-economics.md) | ✅ Completed (code; live-verify pending) | 1 | Low |
 | 3 | [Drill-down + Heartbeat](./phase-03-drill-down-heartbeat.md) | ✅ Completed (code; live-verify pending) | 1, 2 | Medium |
-| 4 | [Nesting + Extras](./phase-04-nesting-extras.md) | ✅ Completed (nesting + burn-rate + progress; queued dropped as out-of-scope) | 3 | High / optional |
+| 4 | [Nesting + Extras](./phase-04-nesting-extras.md) | ✅ Completed — nesting redesigned + verified against real transcripts after the original approach proved broken (code; visual UI live-verify pending); burn-rate + progress done; queued dropped as out-of-scope | 3 | High / optional |
 
 ## Data-readiness map (verified against source)
 
@@ -84,7 +84,7 @@ dependency — the prior plan is done.
 | spawn reason | `Task.input.description` | ⚠️ seen but not stored → Phase 2 |
 | drill-down per-agent calls | parse subagent transcript content blocks | ⚠️ Phase 3 |
 | heartbeat real time-axis | `events-*.ndjson` `ts`+`agentId`; subagent line `timestamp` | ⚠️ Phase 3 |
-| agent nesting (planner→researcher) | **no `parentAgentId`**; reconstruct via child `Task` id | ❌ Phase 4 (needs Phase 3 parsing) |
+| agent nesting (planner→researcher) | `parentAgentId` from each agent's `.meta.json` sidecar | ✅ Phase 4 (redesigned + real-data verified) |
 | queued agents | not in hook data (only post-spawn) | ❌ Phase 4 (plan/todo integration) |
 | burn rate, per-agent progress | derive/sample | ⚠️ Phase 4 |
 
@@ -93,10 +93,15 @@ dependency — the prior plan is done.
 - **Sidebar is a `TreeView` today** — must register a new `WebviewViewProvider` (contributes a
   `views` entry of type `webview`). The mockup is the render target.
 - **Subagent transcript schema** (verified on real files): top keys `agentId, sessionId,
-  isSidechain, parentUuid, uuid, message, timestamp, type, cwd, gitBranch, version`. There is **no
-  `parentAgentId`** — nesting must be reconstructed by parsing each subagent transcript for its own
-  `Task` tool_use blocks (the child's tool_use id == child `agentId`). This makes Phase 4 nesting
-  depend on Phase 3's subagent-content parsing.
+  isSidechain, parentUuid, uuid, message, timestamp, type, cwd, gitBranch, version`. The transcript
+  line itself has no `parentAgentId`, and the spawning tool_use's `id` is **not** the child's agentId
+  (corrected during Phase 4's real-run verification — see that phase's Outcome/Risk Assessment). The
+  actual source of truth is a sibling `agent-<agentId>.meta.json` sidecar carrying `agentType`,
+  `description`, `parentAgentId`, and `toolUseId` — not discovered until Phase 4 spawned a real nested
+  run and inspected the on-disk files.
+- **The spawn tool is named `Agent`, not `Task`**, in real transcripts (also found during Phase 4's
+  real-run verification) — every `Task`-string match anywhere in Phases 2-4 was silently matching
+  nothing until fixed.
 - **`message.model` and `Task.input.description` are already in the data** the reducer reads — they
   are simply dropped today. Capturing them is a small, low-risk `SubAgentState` extension (Phase 2).
 - **Cache economics needs zero new data** — `cacheReadInputTokens` is already summed per agent and

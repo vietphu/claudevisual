@@ -92,12 +92,19 @@ prefer showing "N calls · running" over a fake percentage if the estimate is to
 
 ## Related Code Files
 
-- Modify: `src/ui/webview-view/session-view-model.ts` (tree structure, queued overlay, burn-rate,
-  progress), `src/ui/webview-view-ui/render-agents.ts` (nested rendering)
-- Create: `src/core/agent-tree.ts` (flat subagents + in-transcript Task links → nested tree; pure,
+- Modify: `src/ui/webview-view/session-view-model.ts` (tree structure, burn-rate, progress),
+  `src/ui/webview-view-ui/render-agents.ts` (nested rendering)
+- Create: `src/core/agent-tree.ts` (flat subagents, grouped by each agent's own `parentAgentId` →
+  nested tree; pure, testable)
+- Modify: `src/core/session-state-store.ts` (burn-rate sample ring; subscribes to `onSubagentMeta`)
+- Create (added during real-data verification, not originally scoped): `src/core/subagent-meta-reader.ts`
+  (reads the `.meta.json` sidecar), `src/core/subagent-file-registry.ts` (discovers it, split out of
+  `jsonl-tailer.ts` for the line budget), `src/core/hook-event-parsing.ts` (pure hook/statusline
+  parsing split out of `event-log-reader.ts` so `session-state-overlays.ts` stays vscode-free and
   testable)
-- Modify: `src/core/session-state-store.ts` (burn-rate sample ring)
-- Maybe: `src/core/plan-context.ts` (read active plan phases for queued overlay) — only if pursued
+- Modify: `src/core/session-state-overlays.ts` (`applySubagentMetaOverlay` — sole source of sub-agent
+  identity/nesting), `src/core/state-reducer.ts` / `src/core/subagent-reducer.ts` (dropped the
+  now-provably-broken tool_use-id-based identity/nesting code)
 
 ## Implementation Steps
 
@@ -124,9 +131,12 @@ prefer showing "N calls · running" over a fake percentage if the estimate is to
 
 ## Risk Assessment
 
-- **Nesting correctness** is the main risk — the reconstruction is indirect. Gate on the real-run
-  verification; if it proves unreliable, ship the flat list (Phase 1) and mark nesting deferred. Do
-  NOT invent parent links.
+- **Nesting correctness** was the main risk, and the real-run verification gate this section called
+  for caught a real problem: the original `childAgentIds`-from-transcript-content reconstruction never
+  actually linked anything, because the id it matched on (`Task`/`Agent` tool_use `id`) is not the
+  child's real agentId in current transcripts. Resolved by re-keying nesting around the `.meta.json`
+  sidecar's `parentAgentId` instead (see Outcome above) — re-verified end-to-end against the same real
+  transcripts afterward, this time correct.
 - **Queued = fabrication risk** — the strongest temptation to show data that isn't observed. Only
   render it from a real plan/todo source, explicitly labelled "planned", never mixed with observed
   agents.
