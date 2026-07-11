@@ -34,15 +34,18 @@ body {
 .cv-idle { padding: 16px 6px; color: var(--dim); font-style: italic; }
 .cv-session {
   display: flex; flex-direction: column; gap: 12px; padding: 12px 8px 0;
-  border-radius: 10px; border-left: 3px solid transparent;
+  border-radius: 10px;
 }
 .cv-session + .cv-session { border-top: 1px solid var(--border); margin-top: 6px; }
-/* Expanded session gets its own accent frame so it visually separates from
-   its (collapsed) siblings — the ask this solves is "which session's detail
-   am I looking at", not just "which one is open". */
+/* Expanded session gets a soft accent ring + elevation instead of a solid
+   left bar — this reads as "focused card" rather than a warning stripe, and
+   avoids competing with the grade/orchestration colored bars nested inside
+   the detail body. Solves "which session's detail am I looking at". */
 .cv-session:not(.collapsed) {
-  border-left-color: var(--accent);
-  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent),
+    0 4px 10px rgba(0, 0, 0, 0.18);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
   padding-bottom: 12px;
 }
 /* The identifying header stays pinned while the user scrolls a long expanded
@@ -71,14 +74,17 @@ body {
 
 /* ---- vitals ---- */
 .vitals {
-  background: var(--panel); border: 1px solid var(--border); border-left: 3px solid var(--border);
+  background: var(--panel); border: 1px solid var(--border);
   border-radius: 10px; padding: 11px;
 }
-/* Advisor-grade-tinted left border — lets a low-scoring session stand out in
-   the (collapsed-by-default) list without opening its detail. */
-.vitals.grade-good { border-left-color: var(--good); }
-.vitals.grade-warn { border-left-color: var(--warn); }
-.vitals.grade-crit { border-left-color: var(--crit); }
+/* Advisor-grade tint — lets a low-scoring session stand out in the
+   (collapsed-by-default) list without opening its detail. Tints the whole
+   frame (border + background wash) instead of a single colored bar, so it
+   reads as a state-colored card rather than a flagged/error stripe; the
+   grade badge (.v-grade) still carries the strong color + letter signal. */
+.vitals.grade-good { border-color: color-mix(in srgb, var(--good) 40%, var(--border)); background: color-mix(in srgb, var(--good) 5%, var(--panel)); }
+.vitals.grade-warn { border-color: color-mix(in srgb, var(--warn) 40%, var(--border)); background: color-mix(in srgb, var(--warn) 5%, var(--panel)); }
+.vitals.grade-crit { border-color: color-mix(in srgb, var(--crit) 45%, var(--border)); background: color-mix(in srgb, var(--crit) 6%, var(--panel)); }
 .v-top { display: flex; align-items: center; gap: 8px; cursor: pointer; border-radius: 6px; }
 .v-top:focus-visible {
   outline: 2px solid var(--vscode-focusBorder, var(--accent));

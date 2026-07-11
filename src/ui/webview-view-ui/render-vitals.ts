@@ -35,8 +35,8 @@ function gradeBadge(s: SessionViewModel): string {
  *  button so the affordance to expand reads as a button, not just an implicit chevron —
  *  `expanded` is the initial `aria-expanded` the caller (`main.ts`) has already resolved
  *  for this render (collapsed by default, or a remembered manual override), not state
- *  this function owns. The card's left border tints to the Advisor grade's severity color
- *  (once scored) so a low-scoring session is visible even collapsed. */
+ *  this function owns. The card's frame (border + background wash) tints to the Advisor
+ *  grade's severity color (once scored) so a low-scoring session is visible even collapsed. */
 export function renderVitals(s: SessionViewModel, expanded: boolean): string {
   const dotClass = s.running ? "dot running" : s.live ? "dot live" : "dot idle";
   const statusLabel = s.running ? "working" : s.live ? "live" : "idle";
