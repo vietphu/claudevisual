@@ -167,14 +167,14 @@ render-vitals: if sessionStartSource ∈ {clear,startup} AND no real activity
 
 ## Todo List
 
-- [ ] emit-event.cjs captures `payload.source`
-- [ ] `HookEventRecord.source` added + parsed/validated
-- [ ] `SessionState.lastSessionStartSource` added to type + `emptySessionState`
-- [ ] `applyHookEventOverlay` sets it only on `SessionStart`
-- [ ] `SessionViewModel.sessionStartSource` added + passed through
-- [ ] `render-vitals` renders "new" dot/label under the activity gate
-- [ ] `.dot.new` CSS rule added
-- [ ] `npm run typecheck` clean
+- [x] emit-event.cjs captures `payload.source`
+- [x] `HookEventRecord.source` added + parsed/validated
+- [x] `SessionState.lastSessionStartSource` added to type + `emptySessionState`
+- [x] `applyHookEventOverlay` sets it only on `SessionStart`
+- [x] `SessionViewModel.sessionStartSource` added + passed through
+- [x] `render-vitals` renders "new" dot/label under the activity gate
+- [x] `.dot.new` CSS rule added
+- [x] `npm run typecheck` clean
 
 ## Success Criteria
 

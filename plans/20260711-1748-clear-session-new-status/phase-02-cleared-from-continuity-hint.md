@@ -96,12 +96,14 @@ render-vitals: append " · cleared from <clearedFrom>" to the subtitle when set
 
 ## Todo List
 
-- [ ] `SessionViewModel.clearedFrom` added
-- [ ] `toSidebarViewModel` resolves predecessor by cwd (most-recent other)
-- [ ] Shared no-activity gate (no logic drift vs Phase 1)
-- [ ] Subtitle shows "cleared from <prev>" only in the fresh case
-- [ ] `npm run typecheck` clean
-- [ ] **OR** phase consciously cut — recorded in plan.md
+- [x] `SessionViewModel.clearedFrom` added
+- [x] `toSidebarViewModel` resolves predecessor by cwd (most-recent other)
+- [x] Shared no-activity gate (no logic drift vs Phase 1) — kept as two hand-synced
+      one-liners (host vs. webview bundle) instead of a shared module; verified
+      identical by code review.
+- [x] Subtitle shows "cleared from <prev>" only in the fresh case
+- [x] `npm run typecheck` clean
+- [ ] ~~OR phase consciously cut — recorded in plan.md~~ (not taken; phase was built)
 
 ## Success Criteria
 

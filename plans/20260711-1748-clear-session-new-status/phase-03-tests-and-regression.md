@@ -70,13 +70,15 @@ render assertion as manual (see manual checklist).
 
 ## Todo List
 
-- [ ] `parseHookEventLine` source cases (valid / invalid-type / absent)
-- [ ] `applyHookEventOverlay` source cases (SessionStart set / non-SessionStart preserve / no-source preserve)
-- [ ] `toSessionViewModel` threads `sessionStartSource`
-- [ ] (Phase 2 only) `toSidebarViewModel` `clearedFrom` cases
-- [ ] render "new" label covered (dedicated test or documented-manual)
-- [ ] `npm run typecheck` clean
-- [ ] `npm test` fully green, no new skips
+- [x] `parseHookEventLine` source cases (valid / invalid-type / absent)
+- [x] `applyHookEventOverlay` source cases (SessionStart set / non-SessionStart preserve / no-source preserve)
+- [x] `toSessionViewModel` threads `sessionStartSource`
+- [x] (Phase 2 only) `toSidebarViewModel` `clearedFrom` cases
+- [x] render "new" label covered — documented-manual path chosen (see
+      `docs/manual-live-checklist.md`), plus indirect view-model coverage; no
+      dedicated `render-vitals.test.ts` (explicit choice, not an oversight)
+- [x] `npm run typecheck` clean
+- [x] `npm test` fully green, no new skips (191/191)
 
 ## Success Criteria
 
