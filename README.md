@@ -28,11 +28,25 @@ token/cost overhead.
   Surfaced in the sidebar, the dashboard, and the status bar, with an optional toast on
   critical conditions. Plan-aware: on a flat-fee subscription (Max/Pro) the dollar figure is
   framed as an API-equivalent usage-budget proxy, not billed money (set
-  `claudevisual.advisor.plan`).
+  `claudevisual.advisor.plan`). Every rule's trigger threshold (context warn/crit %, cache
+  churn ratio, expensive-sub-agent cap, etc.) is configurable under
+  `claudevisual.advisor.thresholds.*`.
 - **Opt-in hooks** — lower-latency "is it running now" signal than JSONL tailing alone.
   Installs safely: appends to existing hook arrays in `settings.json`, never replaces them.
 - **Opt-in StatusLine wrap** — precise context%/cost numbers, without disturbing an existing
   `statusLine` command (wraps it, passes its output through unchanged; restore is byte-for-byte).
+
+## Screenshots
+
+Sidebar with multiple concurrent sessions, each collapsed to one row (tokens, cost, context %,
+tok/min):
+
+![Sidebar collapsed](docs/screenshots/sidebar-collapsed.png)
+
+A session expanded — vitals, Efficiency Advisor tips, agent orchestration tree, token
+economics, and activity timeline:
+
+![Sidebar expanded](docs/screenshots/sidebar-expanded.png)
 
 ## Hard constraint
 
