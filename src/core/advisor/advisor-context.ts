@@ -30,6 +30,7 @@ export function buildAdvisorContext(
   const { costUsd, costEstimated } = resolveCost(state);
   return {
     plan: config.plan,
+    thresholds: config.thresholds,
     model: state.model,
     contextPercent: ctxPct.percent,
     contextPrecise: ctxPct.precise,

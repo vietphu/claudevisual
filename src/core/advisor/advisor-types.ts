@@ -5,6 +5,7 @@
 import { TokenUsage } from "../types";
 import { TokenEconomics } from "../token-economics";
 import { BillingPlan, CostInterpretation } from "./advisor-config";
+import { AdvisorThresholds } from "./advisor-thresholds";
 
 /** Ranked highest-to-lowest urgency. */
 export type RecommendationSeverity = "critical" | "warn" | "info";
@@ -52,6 +53,8 @@ export interface EfficiencyScore {
 export interface AdvisorContext {
   /** Billing plan — reframes cost language (subscription proxy vs billed money). */
   plan: BillingPlan;
+  /** Per-rule trigger thresholds this context was built with (user-configurable). */
+  thresholds: AdvisorThresholds;
   model: string | undefined;
   /** Resolved context occupancy (statusline-precise when available). */
   contextPercent: number;

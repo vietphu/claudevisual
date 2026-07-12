@@ -58,7 +58,10 @@ export function activate(context: vscode.ExtensionContext): void {
         return;
       }
       DashboardPanel.createOrShow(context, currentStore);
-    })
+    }),
+    vscode.commands.registerCommand("claudevisual.openSettings", () =>
+      vscode.commands.executeCommand("workbench.action.openSettings", "@ext:dinhphu.claudevisual")
+    )
   );
 
   // Rebuilt whenever workspace folders change (added/removed/reloaded) — not just

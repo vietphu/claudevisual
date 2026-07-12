@@ -3,16 +3,7 @@
 // negligible spend scores as `neutral` rather than being punished for having no data.
 
 import { AdvisorContext, EfficiencyScore, ScoreDimension } from "./advisor-types";
-import {
-  CACHE_CHURN_RATIO,
-  CONTEXT_CRIT_PERCENT,
-  CONTEXT_WARN_PERCENT,
-  GRADE_CUTOFFS,
-  MODEL_RIGHTSIZE_MAX_OUTPUT_SHARE,
-  SCORE_MIN_TOTAL_TOKENS,
-  SCORE_WEIGHTS,
-  SUBAGENT_EXPENSIVE_TOKENS,
-} from "./advisor-thresholds";
+import { GRADE_CUTOFFS, SCORE_MIN_TOTAL_TOKENS, SCORE_WEIGHTS } from "./advisor-thresholds";
 
 function clamp(n: number): number {
   return Math.max(0, Math.min(100, Math.round(n)));
@@ -26,15 +17,16 @@ function usageTotal(u: AdvisorContext["totalUsage"]): number {
  *  beyond, so context pressure dominates the score exactly when it matters. */
 function contextScore(ctx: AdvisorContext): number {
   const p = ctx.contextPercent;
-  if (p <= CONTEXT_WARN_PERCENT) {
+  const { contextWarnPercent: warn, contextCritPercent: crit } = ctx.thresholds;
+  if (p <= warn) {
     return 100;
   }
-  if (p >= CONTEXT_CRIT_PERCENT) {
+  if (p >= crit) {
     // Keep sliding toward 0 past crit rather than flooring, so 99% scores worse than 90%.
-    const over = (p - CONTEXT_CRIT_PERCENT) / (100 - CONTEXT_CRIT_PERCENT);
+    const over = (p - crit) / (100 - crit);
     return clamp(40 * (1 - over));
   }
-  const band = (p - CONTEXT_WARN_PERCENT) / (CONTEXT_CRIT_PERCENT - CONTEXT_WARN_PERCENT);
+  const band = (p - warn) / (crit - warn);
   return clamp(100 - 60 * band); // 100 at warn → 40 at crit
 }
 
@@ -45,7 +37,8 @@ function cacheScore(ctx: AdvisorContext): number {
   const created = ctx.totalUsage.cacheCreationInputTokens;
   const read = ctx.totalUsage.cacheReadInputTokens;
   const ratio = created / Math.max(read, 1);
-  const churnPenalty = ratio > CACHE_CHURN_RATIO ? Math.min(40, (ratio - CACHE_CHURN_RATIO) * 20) : 0;
+  const churnRatio = ctx.thresholds.cacheChurnRatio;
+  const churnPenalty = ratio > churnRatio ? Math.min(40, (ratio - churnRatio) * 20) : 0;
   return clamp(base - churnPenalty);
 }
 
@@ -60,7 +53,7 @@ function modelScore(ctx: AdvisorContext): number {
     return 100;
   }
   const outputShare = ctx.totalUsage.outputTokens / Math.max(total, 1);
-  return outputShare <= MODEL_RIGHTSIZE_MAX_OUTPUT_SHARE ? 55 : 100;
+  return outputShare <= ctx.thresholds.modelRightsizeMaxOutputShare ? 55 : 100;
 }
 
 /** Penalizes a single sub-agent dominating spend past the "expensive" bar; light
@@ -71,10 +64,11 @@ function orchestrationScore(ctx: AdvisorContext): number {
     return 100;
   }
   const worst = Math.max(...subAgents.map((a) => a.tokens));
-  if (worst < SUBAGENT_EXPENSIVE_TOKENS) {
+  const cap = ctx.thresholds.subagentExpensiveTokens;
+  if (worst < cap) {
     return 100;
   }
-  const over = (worst - SUBAGENT_EXPENSIVE_TOKENS) / SUBAGENT_EXPENSIVE_TOKENS;
+  const over = (worst - cap) / cap;
   return clamp(80 - Math.min(50, over * 50));
 }
 

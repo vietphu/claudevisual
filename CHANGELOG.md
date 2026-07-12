@@ -5,6 +5,14 @@ All notable changes to this project are documented here. Format loosely follows
 
 ## [Unreleased]
 
+### Added
+- Efficiency Advisor rule thresholds (context warn/crit %, cache churn ratio, cache
+  low-reuse floor, expensive sub-agent cap, model right-sizing gates, cost-projection
+  burn floor, frequent-compaction count) are now configurable via
+  `claudevisual.advisor.thresholds.*` settings instead of hardcoded constants.
+- Gear icon button in the Sessions sidebar's title bar, opening VS Code Settings
+  pre-filtered to ClaudeVisual's own settings.
+
 ## [0.1.0] — 2026-07-11
 
 First public release: source-available on GitHub and submitted to the VS Code Marketplace.

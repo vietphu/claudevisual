@@ -4,15 +4,19 @@
 // it's real spend. The advisor reframes cost language accordingly; the efficiency
 // analysis itself (context, cache, model-fit, orchestration) is plan-agnostic.
 
+import { AdvisorThresholds, DEFAULT_ADVISOR_THRESHOLDS } from "./advisor-thresholds";
+
 export type BillingPlan = "max" | "pro" | "api";
 
 export interface AdvisorConfig {
   plan: BillingPlan;
+  /** Per-rule trigger thresholds — overridable via `claudevisual.advisor.thresholds.*`. */
+  thresholds: AdvisorThresholds;
 }
 
 /** Default matches the common Claude Code subscription case; overridable via the
- *  `claudevisual.advisor.plan` setting. */
-export const DEFAULT_ADVISOR_CONFIG: AdvisorConfig = { plan: "max" };
+ *  `claudevisual.advisor.plan` and `claudevisual.advisor.thresholds.*` settings. */
+export const DEFAULT_ADVISOR_CONFIG: AdvisorConfig = { plan: "max", thresholds: DEFAULT_ADVISOR_THRESHOLDS };
 
 /** True for flat-fee subscriptions where a dollar figure is a consumption proxy,
  *  not billed spend. */

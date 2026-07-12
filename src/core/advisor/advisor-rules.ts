@@ -7,19 +7,6 @@
 import { formatTokenCount } from "../session-display";
 import { AdvisorContext, Recommendation } from "./advisor-types";
 import { isSubscription } from "./advisor-config";
-import {
-  CACHE_CHURN_MIN_CREATION_TOKENS,
-  CACHE_CHURN_RATIO,
-  CACHE_LOW_MIN_TOTAL_TOKENS,
-  CACHE_LOW_SAVED_PCT,
-  CONTEXT_CRIT_PERCENT,
-  CONTEXT_WARN_PERCENT,
-  COST_PROJECTION_MIN_BURN_PER_MIN,
-  FREQUENT_COMPACTION_COUNT,
-  MODEL_RIGHTSIZE_MAX_OUTPUT_SHARE,
-  MODEL_RIGHTSIZE_MIN_TOTAL_TOKENS,
-  SUBAGENT_EXPENSIVE_TOKENS,
-} from "./advisor-thresholds";
 
 export type AdvisorRule = (ctx: AdvisorContext) => Recommendation | null;
 
@@ -31,7 +18,7 @@ function usageTotal(u: AdvisorContext["totalUsage"]): number {
  *  is imminent and will silently drop detail). Precise or approximate both count;
  *  the `~` nuance is a display concern, not a reason to stay silent. */
 const contextHealthRule: AdvisorRule = (ctx) => {
-  if (ctx.contextPercent >= CONTEXT_CRIT_PERCENT) {
+  if (ctx.contextPercent >= ctx.thresholds.contextCritPercent) {
     return {
       id: "context-critical",
       severity: "critical",
@@ -41,7 +28,7 @@ const contextHealthRule: AdvisorRule = (ctx) => {
       metric: `${ctx.contextPercent}%`,
     };
   }
-  if (ctx.contextPercent >= CONTEXT_WARN_PERCENT) {
+  if (ctx.contextPercent >= ctx.thresholds.contextWarnPercent) {
     return {
       id: "context-warn",
       severity: "warn",
@@ -61,11 +48,11 @@ const contextHealthRule: AdvisorRule = (ctx) => {
 const cacheChurnRule: AdvisorRule = (ctx) => {
   const created = ctx.totalUsage.cacheCreationInputTokens;
   const read = ctx.totalUsage.cacheReadInputTokens;
-  if (created < CACHE_CHURN_MIN_CREATION_TOKENS) {
+  if (created < ctx.thresholds.cacheChurnMinCreationTokens) {
     return null;
   }
   const ratio = created / Math.max(read, 1);
-  if (ratio < CACHE_CHURN_RATIO) {
+  if (ratio < ctx.thresholds.cacheChurnRatio) {
     return null;
   }
   const tail = isSubscription(ctx.plan)
@@ -84,10 +71,10 @@ const cacheChurnRule: AdvisorRule = (ctx) => {
 /** Low overall cache reuse on a session with real spend — a softer, informational
  *  cousin of churn (fires even when the write:read ratio itself isn't extreme). */
 const cacheEfficiencyRule: AdvisorRule = (ctx) => {
-  if (ctx.economics.totalTokens < CACHE_LOW_MIN_TOTAL_TOKENS) {
+  if (ctx.economics.totalTokens < ctx.thresholds.cacheLowMinTotalTokens) {
     return null;
   }
-  if (ctx.economics.cacheSavedPct >= CACHE_LOW_SAVED_PCT) {
+  if (ctx.economics.cacheSavedPct >= ctx.thresholds.cacheLowSavedPct) {
     return null;
   }
   return {
@@ -109,11 +96,11 @@ const modelRightSizingRule: AdvisorRule = (ctx) => {
     return null;
   }
   const total = usageTotal(ctx.totalUsage);
-  if (total < MODEL_RIGHTSIZE_MIN_TOTAL_TOKENS) {
+  if (total < ctx.thresholds.modelRightsizeMinTotalTokens) {
     return null;
   }
   const outputShare = ctx.totalUsage.outputTokens / Math.max(total, 1);
-  if (outputShare > MODEL_RIGHTSIZE_MAX_OUTPUT_SHARE) {
+  if (outputShare > ctx.thresholds.modelRightsizeMaxOutputShare) {
     return null;
   }
   return {
@@ -131,7 +118,7 @@ const modelRightSizingRule: AdvisorRule = (ctx) => {
  *  direct Grep/Read might have been cheaper. */
 const subAgentCostRule: AdvisorRule = (ctx) => {
   const expensive = ctx.economics.byAgent
-    .filter((a) => a.agentId !== "main" && a.tokens >= SUBAGENT_EXPENSIVE_TOKENS)
+    .filter((a) => a.agentId !== "main" && a.tokens >= ctx.thresholds.subagentExpensiveTokens)
     .sort((x, y) => y.tokens - x.tokens);
   if (expensive.length === 0) {
     return null;
@@ -150,7 +137,7 @@ const subAgentCostRule: AdvisorRule = (ctx) => {
 /** Projected spend to the context limit, from the live burn rate. Purely
  *  informational planning signal; only meaningful with an active burn and headroom. */
 const costProjectionRule: AdvisorRule = (ctx) => {
-  if (!ctx.burnRatePerMin || ctx.burnRatePerMin < COST_PROJECTION_MIN_BURN_PER_MIN) {
+  if (!ctx.burnRatePerMin || ctx.burnRatePerMin < ctx.thresholds.costProjectionMinBurnPerMin) {
     return null;
   }
   const remaining = ctx.contextWindowTokens - ctx.contextUsedTokens;
@@ -174,7 +161,7 @@ const costProjectionRule: AdvisorRule = (ctx) => {
 /** Repeated compaction = the window keeps overflowing. Compacting again loses more
  *  detail each time; splitting the work into a fresh session is usually better. */
 const frequentCompactionRule: AdvisorRule = (ctx) => {
-  if (ctx.compactionCount < FREQUENT_COMPACTION_COUNT) {
+  if (ctx.compactionCount < ctx.thresholds.frequentCompactionCount) {
     return null;
   }
   return {

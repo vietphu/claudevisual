@@ -1,48 +1,70 @@
-// All tunable knobs for the advisor in one place, each with the reasoning behind
-// its value. Centralized so thresholds can be adjusted after real-session
-// dogfooding without hunting through rule logic. No plan-artifact references —
-// each comment explains the invariant, not where it came from.
+// All tunable knobs for the advisor rules, in one place. `AdvisorThresholds` is the
+// user-overridable subset (surfaced as `claudevisual.advisor.thresholds.*` settings);
+// `DEFAULT_ADVISOR_THRESHOLDS` holds the dogfooded defaults, each with the reasoning
+// behind its value so they can be re-tuned without hunting through rule logic.
+// The score-mechanics constants below (weights, grade cutoffs, neutral floor) are
+// internal to the scoring algorithm, not per-rule triggers, so they stay fixed.
 
 /** Context-occupancy bands. Match the sidebar vitals meter (good/warn/crit) so the
- *  advisor and the context meter never disagree about "is this session in trouble". */
-export const CONTEXT_WARN_PERCENT = 75;
-export const CONTEXT_CRIT_PERCENT = 90;
+ *  advisor and the context meter never disagree about "is this session in trouble".
+ *  Only the advisor's own bands are user-configurable; the sidebar meter is a
+ *  separate raw context% display and won't follow an override here. */
+export interface AdvisorThresholds {
+  contextWarnPercent: number;
+  contextCritPercent: number;
 
-/** Cache churn: cache-creation tokens are billed at a premium over cache-read.
- *  A high creation:read ratio means context is being re-written instead of reused
- *  (waste). Only flag once creation passes a floor so tiny early sessions (where the
- *  ratio is naturally high before any reuse accrues) don't trip it. */
-export const CACHE_CHURN_RATIO = 1.5;
-export const CACHE_CHURN_MIN_CREATION_TOKENS = 50_000;
+  /** Cache churn: cache-creation tokens are billed at a premium over cache-read.
+   *  A high creation:read ratio means context is being re-written instead of reused
+   *  (waste). Only flag once creation passes a floor so tiny early sessions (where the
+   *  ratio is naturally high before any reuse accrues) don't trip it. */
+  cacheChurnRatio: number;
+  cacheChurnMinCreationTokens: number;
 
-/** Cache efficiency: below this reuse rate on a session with real spend, the user is
- *  likely re-sending context they could keep warm. Info-level nudge, not a warning. */
-export const CACHE_LOW_SAVED_PCT = 25;
-export const CACHE_LOW_MIN_TOTAL_TOKENS = 200_000;
+  /** Cache efficiency: below this reuse rate on a session with real spend, the user is
+   *  likely re-sending context they could keep warm. Info-level nudge, not a warning. */
+  cacheLowSavedPct: number;
+  cacheLowMinTotalTokens: number;
 
-/** A single sub-agent past this token spend is worth surfacing for ROI review —
- *  large fan-outs are fine, but one agent quietly burning this much often means a
- *  cheaper primitive (Grep/Read) would have done. */
-export const SUBAGENT_EXPENSIVE_TOKENS = 150_000;
+  /** A single sub-agent past this token spend is worth surfacing for ROI review —
+   *  large fan-outs are fine, but one agent quietly burning this much often means a
+   *  cheaper primitive (Grep/Read) would have done. */
+  subagentExpensiveTokens: number;
 
-/** Model right-sizing (heuristic, phrased "consider" — never asserted). Only consider
- *  a downgrade suggestion when the session is on a top-tier model, has done real work,
- *  and its output share is low (little generation → the reasoning premium wasn't used).
- *  Gated conservatively to avoid false positives; validate against real transcripts. */
-export const MODEL_RIGHTSIZE_MIN_TOTAL_TOKENS = 300_000;
-export const MODEL_RIGHTSIZE_MAX_OUTPUT_SHARE = 0.05;
+  /** Model right-sizing (heuristic, phrased "consider" — never asserted). Only consider
+   *  a downgrade suggestion when the session is on a top-tier model, has done real work,
+   *  and its output share is low (little generation → the reasoning premium wasn't used). */
+  modelRightsizeMinTotalTokens: number;
+  modelRightsizeMaxOutputShare: number;
 
-/** Cost projection only fires with a live burn rate and a known window with real
- *  headroom left — projecting from a stale/idle session would mislead. */
-export const COST_PROJECTION_MIN_BURN_PER_MIN = 1_000;
+  /** Cost projection only fires with a live burn rate and a known window with real
+   *  headroom left — projecting from a stale/idle session would mislead. */
+  costProjectionMinBurnPerMin: number;
 
-/** Repeated compaction means the context window keeps overflowing — a strong sign
- *  the session should be split rather than compacted again. One compaction is
- *  routine; this many is thrash. */
-export const FREQUENT_COMPACTION_COUNT = 2;
+  /** Repeated compaction means the context window keeps overflowing — a strong sign
+   *  the session should be split rather than compacted again. One compaction is
+   *  routine; this many is thrash. */
+  frequentCompactionCount: number;
+}
+
+/** Defaults matching the common Claude Code session case; each overridable via the
+ *  matching `claudevisual.advisor.thresholds.*` setting. */
+export const DEFAULT_ADVISOR_THRESHOLDS: AdvisorThresholds = {
+  contextWarnPercent: 75,
+  contextCritPercent: 90,
+  cacheChurnRatio: 1.5,
+  cacheChurnMinCreationTokens: 50_000,
+  cacheLowSavedPct: 25,
+  cacheLowMinTotalTokens: 200_000,
+  subagentExpensiveTokens: 150_000,
+  modelRightsizeMinTotalTokens: 300_000,
+  modelRightsizeMaxOutputShare: 0.05,
+  costProjectionMinBurnPerMin: 1_000,
+  frequentCompactionCount: 2,
+};
 
 /** Efficiency Score dimension weights (sum ~1.0). Context health and cache efficiency
- *  dominate because they're the most actionable, high-frequency levers. */
+ *  dominate because they're the most actionable, high-frequency levers. Internal to
+ *  the scoring algorithm — not user-configurable. */
 export const SCORE_WEIGHTS = {
   context: 0.35,
   cache: 0.3,

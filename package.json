@@ -61,6 +61,11 @@
       {
         "command": "claudevisual.openDashboard",
         "title": "ClaudeVisual: Open Dashboard"
+      },
+      {
+        "command": "claudevisual.openSettings",
+        "title": "ClaudeVisual: Open Settings",
+        "icon": "$(gear)"
       }
     ],
     "configuration": {
@@ -86,6 +91,76 @@
           "type": "boolean",
           "default": true,
           "description": "Show a VS Code notification when a session hits a critical efficiency condition (e.g. context almost full). Fires once per condition, not per update."
+        },
+        "claudevisual.advisor.thresholds.contextWarnPercent": {
+          "type": "number",
+          "default": 75,
+          "minimum": 1,
+          "maximum": 98,
+          "description": "Context-window occupancy (%) at which the Efficiency Advisor starts warning that context is filling up."
+        },
+        "claudevisual.advisor.thresholds.contextCritPercent": {
+          "type": "number",
+          "default": 90,
+          "minimum": 2,
+          "maximum": 99,
+          "description": "Context-window occupancy (%) at which the Efficiency Advisor flags context as critical (wrap up or /compact now). Must be greater than contextWarnPercent."
+        },
+        "claudevisual.advisor.thresholds.cacheChurnRatio": {
+          "type": "number",
+          "default": 1.5,
+          "minimum": 1,
+          "description": "Cache creation:read ratio above which the advisor flags high cache churn (context being re-written instead of reused)."
+        },
+        "claudevisual.advisor.thresholds.cacheChurnMinCreationTokens": {
+          "type": "number",
+          "default": 50000,
+          "minimum": 0,
+          "description": "Minimum cache-creation tokens before the cache-churn check applies, so small early sessions (naturally high ratio before reuse accrues) don't false-trip."
+        },
+        "claudevisual.advisor.thresholds.cacheLowSavedPct": {
+          "type": "number",
+          "default": 25,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Cache-reuse rate (%) below which the advisor nudges about low cache reuse on a session with real spend."
+        },
+        "claudevisual.advisor.thresholds.cacheLowMinTotalTokens": {
+          "type": "number",
+          "default": 200000,
+          "minimum": 0,
+          "description": "Minimum total tokens before the low-cache-reuse nudge applies."
+        },
+        "claudevisual.advisor.thresholds.subagentExpensiveTokens": {
+          "type": "number",
+          "default": 150000,
+          "minimum": 0,
+          "description": "Token spend by a single sub-agent above which the advisor flags it for ROI review."
+        },
+        "claudevisual.advisor.thresholds.modelRightsizeMinTotalTokens": {
+          "type": "number",
+          "default": 300000,
+          "minimum": 0,
+          "description": "Minimum total tokens on an Opus session before the advisor considers suggesting a lighter model."
+        },
+        "claudevisual.advisor.thresholds.modelRightsizeMaxOutputShare": {
+          "type": "number",
+          "default": 0.05,
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Maximum output-token share (0-1) on an Opus session for the advisor to suggest a lighter model — low output share means little of the reasoning premium was used."
+        },
+        "claudevisual.advisor.thresholds.costProjectionMinBurnPerMin": {
+          "type": "number",
+          "default": 1000,
+          "minimum": 0,
+          "description": "Minimum live token burn rate (tokens/min) before the advisor projects time-to-context-limit."
+        },
+        "claudevisual.advisor.thresholds.frequentCompactionCount": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "description": "Number of /compact events in a session at which the advisor flags repeated compaction and suggests splitting the work into a fresh session."
         }
       }
     },
@@ -104,6 +179,15 @@
           "id": "claudevisual.sessions",
           "name": "Sessions",
           "type": "webview"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "claudevisual.openSettings",
+          "when": "view == claudevisual.sessions",
+          "group": "navigation"
         }
       ]
     }
