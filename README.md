@@ -38,15 +38,18 @@ token/cost overhead.
 
 ## Screenshots
 
-Sidebar with multiple concurrent sessions, each collapsed to one row (tokens, cost, context %,
-tok/min):
-
-![Sidebar collapsed](docs/screenshots/sidebar-collapsed.png)
-
-A session expanded — vitals, Efficiency Advisor tips, agent orchestration tree, token
-economics, and activity timeline:
-
-![Sidebar expanded](docs/screenshots/sidebar-expanded.png)
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/sidebar-collapsed.png" alt="Sidebar collapsed" width="100%">
+      <p align="center"><sub>Multiple concurrent sessions, each collapsed to one row (tokens, cost, context %, tok/min)</sub></p>
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/screenshots/sidebar-expanded.png" alt="Sidebar expanded" width="100%">
+      <p align="center"><sub>Session expanded — vitals, Efficiency Advisor tips, agent orchestration tree, token economics, activity timeline</sub></p>
+    </td>
+  </tr>
+</table>
 
 ## Hard constraint
 
