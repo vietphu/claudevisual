@@ -183,6 +183,13 @@ live `claude` session in a tailed workspace folder:
 - **Feed + files** — recent tool calls (spawns dashed) and touched-files panel.
 - **Queued agents** — intentionally NOT shown (out-of-scope; only post-spawn data
   is observed — see `plans/.../phase-04-nesting-extras.md`).
+- **`/clear` "new" status** (with Hooks installed) — run `/clear` in a live `claude`
+  session: the resulting empty session shows a distinct **"new"** dot/label instead
+  of "idle", plus a "cleared from <previous title/shortId>" subtitle hint pointing
+  at the prior session in the same cwd. Send a first prompt in the cleared session
+  and confirm it flips back to normal running/live/idle status once it has real
+  activity (tokens, a tool call, or an `ai-title`) — see
+  `plans/20260711-1748-clear-session-new-status/`.
 
 ## Efficiency Advisor
 

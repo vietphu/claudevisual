@@ -55,6 +55,9 @@ function buildRecord(payload) {
   if (typeof payload.permission_mode === "string") {
     record.permissionMode = payload.permission_mode;
   }
+  if (typeof payload.source === "string") {
+    record.source = payload.source;
+  }
   return record;
 }
 

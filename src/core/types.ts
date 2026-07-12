@@ -69,6 +69,11 @@ export interface SessionState {
   lastHookEvent: string | undefined;
   /** Timestamp (ms) `lastHookEvent` was recorded. */
   lastHookEventAt: number | undefined;
+  /** `source` of the most recent `SessionStart` hook event (`"startup" | "resume" |
+   *  "clear" | "compact"`), if hooks are installed. Lets the sidebar tell a
+   *  just-`/clear`-ed (or just-started) empty session apart from one that did
+   *  work and went quiet. */
+  lastSessionStartSource: string | undefined;
   /**
    * Precise context-window usage percentage (0-100) sourced from the
    * statusLine payload's `context_window.used_percentage` (Phase 4,
@@ -134,6 +139,7 @@ export function emptySessionState(sessionId: string, cwd: string): SessionState 
     running: false,
     lastHookEvent: undefined,
     lastHookEventAt: undefined,
+    lastSessionStartSource: undefined,
     preciseContextPercent: undefined,
     preciseContextWindowSize: undefined,
     preciseContextUsedTokens: undefined,

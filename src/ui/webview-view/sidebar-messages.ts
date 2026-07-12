@@ -132,6 +132,12 @@ export interface SessionViewModel {
   /** Claude Code's own auto-generated session title, or undefined until the
    *  first `ai-title` transcript line has been seen. */
   title?: string;
+  /** `source` of the latest `SessionStart` hook event (`"startup" | "resume" |
+   *  "clear" | "compact"`), when hooks are installed — otherwise undefined. */
+  sessionStartSource?: string;
+  /** For a just-`/clear`-ed, still-empty session, the title/shortId of the prior
+   *  same-`cwd` session, for continuity. Undefined otherwise. */
+  clearedFrom?: string;
   model?: string;
   running: boolean;
   live: boolean;

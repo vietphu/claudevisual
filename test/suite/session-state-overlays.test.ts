@@ -21,6 +21,38 @@ describe("session-state-overlays", () => {
       assert.equal(state.running, false);
       assert.equal(state.model, "claude-sonnet-5");
     });
+
+    it("records lastSessionStartSource from a SessionStart event", () => {
+      const state = applyHookEventOverlay(undefined, {
+        ts: 100,
+        sessionId: "s1",
+        hookEvent: "SessionStart",
+        source: "clear",
+      });
+      assert.equal(state.lastSessionStartSource, "clear");
+    });
+
+    it("preserves the prior source through later, unrelated events", () => {
+      const started = applyHookEventOverlay(undefined, {
+        ts: 100,
+        sessionId: "s1",
+        hookEvent: "SessionStart",
+        source: "clear",
+      });
+      const state = applyHookEventOverlay(started, { ts: 200, sessionId: "s1", hookEvent: "UserPromptSubmit" });
+      assert.equal(state.lastSessionStartSource, "clear");
+    });
+
+    it("ignores a SessionStart event with no source rather than clearing a known one", () => {
+      const started = applyHookEventOverlay(undefined, {
+        ts: 100,
+        sessionId: "s1",
+        hookEvent: "SessionStart",
+        source: "clear",
+      });
+      const state = applyHookEventOverlay(started, { ts: 200, sessionId: "s1", hookEvent: "SessionStart" });
+      assert.equal(state.lastSessionStartSource, "clear");
+    });
   });
 
   describe("applyStatuslineOverlay", () => {

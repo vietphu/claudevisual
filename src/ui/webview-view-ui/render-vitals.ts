@@ -38,8 +38,15 @@ function gradeBadge(s: SessionViewModel): string {
  *  this function owns. The card's frame (border + background wash) tints to the Advisor
  *  grade's severity color (once scored) so a low-scoring session is visible even collapsed. */
 export function renderVitals(s: SessionViewModel, expanded: boolean): string {
-  const dotClass = s.running ? "dot running" : s.live ? "dot live" : "dot idle";
-  const statusLabel = s.running ? "working" : s.live ? "live" : "idle";
+  // A session started by `/clear` (or freshly opened) that hasn't done any real
+  // work yet reads as "idle" identically to one that finished work and went
+  // quiet — misleading users into thinking their prior session's data vanished.
+  // Kept in sync by hand with `session-view-model.ts`'s own no-activity check
+  // (different bundle, trivial one-liner — not worth a shared helper).
+  const hasActivity = s.totalTokens > 0 || s.agents.length > 0 || s.feed.length > 0 || !!s.title;
+  const isFresh = !hasActivity && (s.sessionStartSource === "clear" || s.sessionStartSource === "startup");
+  const dotClass = isFresh ? "dot new" : s.running ? "dot running" : s.live ? "dot live" : "dot idle";
+  const statusLabel = isFresh ? "new" : s.running ? "working" : s.live ? "live" : "idle";
   const ctxPct = `${s.contextPrecise ? "" : "~"}${s.contextPercent}%`;
   const sev = severityClass(s.contextPercent);
   const ctxDetail = `${formatTokens(s.contextUsedTokens)} / ${formatTokens(s.contextWindowTokens)} tokens`;
@@ -47,10 +54,13 @@ export function renderVitals(s: SessionViewModel, expanded: boolean): string {
   const name = s.title || project || s.shortId;
   // Subtitle repeats the project name only when the headline is showing
   // something else (the ai-title) — otherwise it'd just echo the headline.
+  // `esc()` runs once over the whole subtitle at the render site below, so
+  // `clearedFrom` is interpolated raw here, not double-escaped.
+  const clearedFromSuffix = s.clearedFrom ? ` · cleared from ${s.clearedFrom}` : "";
   const subtitle =
-    project && name !== project
+    (project && name !== project
       ? `${project} · ${s.shortId} · ${statusLabel}`
-      : `${s.shortId} · ${statusLabel}`;
+      : `${s.shortId} · ${statusLabel}`) + clearedFromSuffix;
   const cost =
     s.costUsd !== undefined
       ? `<div class="stat"><b class="good">${s.costEstimated ? "~" : ""}${formatUsd(s.costUsd)}</b><u>cost${s.costEstimated ? " · est" : ""}</u></div>`

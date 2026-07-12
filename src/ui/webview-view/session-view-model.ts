@@ -25,7 +25,28 @@ export function toSidebarViewModel(
   advisorConfig: AdvisorConfig = DEFAULT_ADVISOR_CONFIG
 ): SidebarViewModel {
   const ordered = sessions.slice().sort((a, b) => b.lastUpdatedAt - a.lastUpdatedAt);
-  return { sessions: ordered.map((s) => toSessionViewModel(s, advisorConfig)) };
+  const vms = ordered.map((s) => toSessionViewModel(s, advisorConfig));
+  return { sessions: vms.map((vm, i) => withClearedFrom(vm, vms, i)) };
+}
+
+/**
+ * For a just-`/clear`-ed, still-empty session, points at the most-recently-updated
+ * other session sharing its `cwd` — continuity so the user sees "cleared from X"
+ * instead of reading an empty card as lost data. `vms` is already sorted
+ * most-recent-first (see `toSidebarViewModel`), so the predecessor is the first
+ * later entry with the same `cwd`; no new index needed, the list is tiny.
+ *
+ * The no-activity check mirrors `render-vitals.ts`'s own "isFresh" gate — kept as
+ * a duplicated one-liner rather than a shared helper, since the two run in
+ * different bundles (host vs. webview) and the condition is trivial to keep in sync.
+ */
+function withClearedFrom(vm: SessionViewModel, vms: readonly SessionViewModel[], index: number): SessionViewModel {
+  const hasActivity = vm.totalTokens > 0 || vm.agents.length > 0 || vm.feed.length > 0 || !!vm.title;
+  if (hasActivity || vm.sessionStartSource !== "clear") {
+    return vm;
+  }
+  const prev = vms.find((other, j) => j !== index && other.cwd === vm.cwd);
+  return prev ? { ...vm, clearedFrom: prev.title ?? prev.shortId } : vm;
 }
 
 function toSessionViewModel(state: SessionState, advisorConfig: AdvisorConfig): SessionViewModel {
@@ -38,6 +59,7 @@ function toSessionViewModel(state: SessionState, advisorConfig: AdvisorConfig): 
     shortId: state.sessionId.slice(0, 8),
     cwd: state.cwd,
     title: state.title,
+    sessionStartSource: state.lastSessionStartSource,
     model: state.model,
     running: state.running,
     live: state.isLive,

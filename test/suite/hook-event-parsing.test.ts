@@ -1,7 +1,32 @@
 import { strict as assert } from "assert";
-import { parseStatuslineCache } from "../../src/core/hook-event-parsing";
+import { parseHookEventLine, parseStatuslineCache } from "../../src/core/hook-event-parsing";
 
 describe("hook-event-parsing", () => {
+  describe("parseHookEventLine", () => {
+    it("parses a SessionStart record's source field", () => {
+      const line = JSON.stringify({
+        ts: 1_700_000_000_000,
+        sessionId: "s1",
+        hookEvent: "SessionStart",
+        source: "clear",
+      });
+
+      const result = parseHookEventLine(line);
+      assert.equal(result?.hookEvent, "SessionStart");
+      assert.equal(result?.source, "clear");
+    });
+
+    it("leaves source undefined when absent (every non-SessionStart event)", () => {
+      const line = JSON.stringify({ ts: 1, sessionId: "s1", hookEvent: "PreToolUse" });
+      assert.equal(parseHookEventLine(line)?.source, undefined);
+    });
+
+    it("drops a non-string source rather than throwing", () => {
+      const line = JSON.stringify({ ts: 1, sessionId: "s1", source: 42 });
+      assert.equal(parseHookEventLine(line)?.source, undefined);
+    });
+  });
+
   describe("parseStatuslineCache", () => {
     it("parses a real statusline payload's context_window fields, including total_input_tokens", () => {
       const raw = JSON.stringify({

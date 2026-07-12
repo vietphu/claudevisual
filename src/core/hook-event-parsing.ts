@@ -16,6 +16,9 @@ export interface HookEventRecord {
   agentId?: string;
   agentType?: string;
   permissionMode?: string;
+  /** `SessionStart`'s reason for firing (`"startup" | "resume" | "clear" | "compact"`).
+   *  Undefined on every other hook event. */
+  source?: string;
 }
 
 /** One parsed snapshot of `statusline-cache.json` — the precise
@@ -78,6 +81,7 @@ export function parseHookEventLine(line: string): HookEventRecord | undefined {
       agentId: typeof parsed.agentId === "string" ? parsed.agentId : undefined,
       agentType: typeof parsed.agentType === "string" ? parsed.agentType : undefined,
       permissionMode: typeof parsed.permissionMode === "string" ? parsed.permissionMode : undefined,
+      source: typeof parsed.source === "string" ? parsed.source : undefined,
     };
   } catch {
     return undefined;

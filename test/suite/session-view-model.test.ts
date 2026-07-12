@@ -129,4 +129,58 @@ describe("session-view-model", () => {
     assert.equal(vm.sessions[0].sessionId, "new");
     assert.equal(vm.sessions[1].sessionId, "old");
   });
+
+  it("passes the reducer-derived SessionStart source through, undefined when hooks are absent", () => {
+    const withSource = { ...emptySessionState("s1", "/p"), lastSessionStartSource: "clear" };
+    const withoutSource = emptySessionState("s2", "/p");
+    const [vmWith, vmWithout] = toSidebarViewModel([withSource, withoutSource]).sessions;
+    assert.equal(vmWith.sessionStartSource, "clear");
+    assert.equal(vmWithout.sessionStartSource, undefined);
+  });
+
+  it("points a fresh /clear-ed session's clearedFrom at the most recent same-cwd predecessor", () => {
+    const original = { ...emptySessionState("session-original1", "/p"), lastUpdatedAt: 100, title: "Fix login bug" };
+    const cleared = {
+      ...emptySessionState("session-clear0001", "/p"),
+      lastUpdatedAt: 200,
+      lastSessionStartSource: "clear",
+    };
+    const vm = toSidebarViewModel([original, cleared]);
+    const clearedVm = vm.sessions.find((s) => s.sessionId === "session-clear0001");
+    assert.equal(clearedVm?.clearedFrom, "Fix login bug");
+  });
+
+  it("falls back to the predecessor's shortId when it has no title", () => {
+    const original = { ...emptySessionState("session-original2", "/p"), lastUpdatedAt: 100 };
+    const cleared = {
+      ...emptySessionState("session-clear0002", "/p"),
+      lastUpdatedAt: 200,
+      lastSessionStartSource: "clear",
+    };
+    const vm = toSidebarViewModel([original, cleared]);
+    const clearedVm = vm.sessions.find((s) => s.sessionId === "session-clear0002");
+    assert.equal(clearedVm?.clearedFrom, "session-");
+  });
+
+  it("leaves clearedFrom undefined once the cleared session has real activity", () => {
+    const original = { ...emptySessionState("session-original3", "/p"), lastUpdatedAt: 100, title: "Fix login bug" };
+    const cleared = {
+      ...emptySessionState("session-clear0003", "/p"),
+      lastUpdatedAt: 200,
+      lastSessionStartSource: "clear",
+      cumulativeUsage: { inputTokens: 10, outputTokens: 5, cacheCreationInputTokens: 0, cacheReadInputTokens: 0 },
+    };
+    const vm = toSidebarViewModel([original, cleared]);
+    const clearedVm = vm.sessions.find((s) => s.sessionId === "session-clear0003");
+    assert.equal(clearedVm?.clearedFrom, undefined);
+  });
+
+  it("leaves clearedFrom undefined when no other session shares the cwd", () => {
+    const cleared = {
+      ...emptySessionState("session-clear0004", "/other-cwd"),
+      lastSessionStartSource: "clear",
+    };
+    const vm = toSidebarViewModel([cleared]).sessions[0];
+    assert.equal(vm.clearedFrom, undefined);
+  });
 });

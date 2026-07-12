@@ -124,6 +124,7 @@ body {
 .dot.running { background: var(--good); }
 .dot.live { background: var(--good); }
 .dot.idle { background: var(--dim); }
+.dot.new { background: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 30%, transparent); }
 /* Expanding "live" ring, as a ::after rather than an animated box-shadow —
    transform/opacity are compositor-friendly, box-shadow forces a repaint
    every frame. Shared by both places a pulsing dot appears (`.dot.running`

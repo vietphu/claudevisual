@@ -19,6 +19,8 @@ export function applyHookEventOverlay(previous: SessionState | undefined, record
     running: nextRunning,
     lastHookEvent: record.hookEvent ?? base.lastHookEvent,
     lastHookEventAt: record.ts,
+    lastSessionStartSource:
+      record.hookEvent === "SessionStart" && record.source ? record.source : base.lastSessionStartSource,
     lastUpdatedAt: Math.max(base.lastUpdatedAt, record.ts),
   };
 }
