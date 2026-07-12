@@ -3,6 +3,8 @@
 [![CI](https://github.com/vietphu/claudevisual/actions/workflows/ci.yml/badge.svg)](https://github.com/vietphu/claudevisual/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+## Introduction
+
 Real-time visibility into [Claude Code](https://claude.com/product/claude-code) sessions,
 right inside VS Code — plus in-editor editing of Claude Code's own config.
 
@@ -11,30 +13,6 @@ context is left, which workflow/skill/sub-agent is running, which model is activ
 task is costing in tokens, and which permission mode you're in. ClaudeVisual surfaces all of
 that live in the sidebar and status bar, without slowing Claude Code down or adding to its
 token/cost overhead.
-
-## Features
-
-- **Status bar** — active model, context-window usage, permission mode, running indicator.
-- **Sidebar webview** — per-session vitals (tokens, cost, burn rate, Efficiency Advisor grade)
-  collapsed to one row by default, expandable into the full agent tree: sub-agents, skills
-  invoked, a tool-call feed, and a files-touched panel. Concurrent sessions in the same working
-  directory render as separate siblings, never merged.
-- **Dashboard webview** — hand-rolled token/cost/context-usage charts fed by incremental
-  updates, plus a dual-scope (global + project) config-editing form with diff/confirm and Undo
-  on every write.
-- **Efficiency Advisor** — turns the measured signals into an at-a-glance Efficiency Score
-  (A–F) plus ranked, actionable cost/efficiency recommendations (context near limit, cache
-  churn, model right-sizing, expensive sub-agents, repeated compaction, truncated turns).
-  Surfaced in the sidebar, the dashboard, and the status bar, with an optional toast on
-  critical conditions. Plan-aware: on a flat-fee subscription (Max/Pro) the dollar figure is
-  framed as an API-equivalent usage-budget proxy, not billed money (set
-  `claudevisual.advisor.plan`). Every rule's trigger threshold (context warn/crit %, cache
-  churn ratio, expensive-sub-agent cap, etc.) is configurable under
-  `claudevisual.advisor.thresholds.*`.
-- **Opt-in hooks** — lower-latency "is it running now" signal than JSONL tailing alone.
-  Installs safely: appends to existing hook arrays in `settings.json`, never replaces them.
-- **Opt-in StatusLine wrap** — precise context%/cost numbers, without disturbing an existing
-  `statusLine` command (wraps it, passes its output through unchanged; restore is byte-for-byte).
 
 ## Screenshots
 
@@ -50,12 +28,6 @@ token/cost overhead.
     </td>
   </tr>
 </table>
-
-## Hard constraint
-
-ClaudeVisual must never slow down or add token/cost overhead to Claude Code itself. Every
-I/O surface it adds is an O(1) append or an O(1) small-file overwrite — no blocking reads, no
-chatty hooks, no read-modify-write on hot paths.
 
 ## Installation
 
@@ -90,10 +62,86 @@ including the faster F5 Extension Development Host loop for active development.
 2. The ClaudeVisual sidebar (activity bar icon) and status bar populate automatically from
    that session's JSONL transcript — no configuration needed for the baseline.
 3. Optionally, from the Command Palette:
-   - `ClaudeVisual: Install Hooks` — faster running-indicator.
-   - `ClaudeVisual: Wrap StatusLine` — precise context%/cost (wraps, never overwrites, an
-     existing `statusLine` command).
+   - `ClaudeVisual: Install Hooks` — appends to existing hook arrays in `settings.json` (never
+     replaces them) for a lower-latency "is it running now" signal than JSONL tailing alone.
+   - `ClaudeVisual: Wrap StatusLine` — wraps (never overwrites) an existing `statusLine`
+     command, passing its output through unchanged, for precise context%/cost numbers.
    - `ClaudeVisual: Open Dashboard` — charts + config-editing form.
+
+## Core values
+
+1. **Zero overhead** — the one hard constraint the whole extension is built around: it must
+   never slow down or add token/cost overhead to Claude Code itself. Every I/O surface is an
+   O(1) append or an O(1) small-file overwrite — no blocking reads, no chatty hooks, no
+   read-modify-write on hot paths.
+2. **Visibility** — surface what the terminal hides: context left, active model, which
+   skill/sub-agent is running, per-session token cost, permission mode — live, without extra
+   configuration.
+3. **Non-destructive, always reversible** — every write respects what's already there instead
+   of overwriting it: hooks append to existing arrays, StatusLine wraps (byte-for-byte
+   restorable) instead of replacing, and config writes go through backup + atomic
+   write-then-rename + rollback, with Undo on every write.
+4. **Actionable, not just numbers** — raw signals (tokens, cache, context %) are turned into a
+   graded Efficiency Score and ranked, concrete recommendations, not just charts to stare at.
+
+## What ClaudeVisual measures
+
+| Signal | What it captures |
+| --- | --- |
+| Context window % | Usage against the active model's window limit |
+| Tokens by type | Input, output, cache-creation, cache-read — totaled and broken down per sub-agent |
+| Cache reuse % | Share of tokens served from cache instead of resent |
+| Burn rate | Tokens/minute, used to project time-to-context-limit |
+| Compaction count | How many times the session has been auto-summarized |
+| Last turn stop reason | Whether the last turn was truncated (`max_tokens`) |
+| Active model vs. output share | Whether the model in use matches the shape of the work |
+| Per-sub-agent spend | Tokens each sub-agent consumed, relative to the main agent |
+
+## Efficiency Score (A–F) and Advisor recommendations
+
+The **Efficiency Score** blends four weighted 0–100 dimensions into one letter grade:
+
+- **Context health** — full marks below the warn threshold, degrading fast past it
+- **Cache efficiency** — cache reuse %, penalized further by write:read churn
+- **Model fit** — penalizes only the case of a top-tier model doing low-output, read-heavy work
+- **Orchestration** — penalizes a single sub-agent dominating token spend
+
+A session with too little usage yet is scored `neutral` rather than punished for lacking data.
+
+From those same signals, the **Advisor** raises concrete, ranked recommendations:
+
+| Trigger | Recommendation |
+| --- | --- |
+| Context near/at limit | Wrap up or `/compact` now, before an auto-summary drops detail |
+| High cache write:read churn | Batch edits later in the session to keep more context cached |
+| Low overall cache reuse | Keep a stable prompt prefix — fewer early edits, fewer restarts |
+| Repeated compaction | Split remaining work into a fresh session instead of compacting again |
+| Opus doing low-output, read-heavy work | Switch to a lighter model (e.g. Sonnet) with `/model` |
+| A turn stopped on `max_tokens` | Break the request into smaller steps |
+| One sub-agent burned a lot of tokens | A direct Grep/Read is often cheaper than spawning an agent |
+| Approaching the context limit at current burn rate | Plan a natural stopping point |
+
+Every trigger threshold (context warn/crit %, cache churn ratio, expensive-sub-agent cap, etc.)
+is configurable under `claudevisual.advisor.thresholds.*`. On a flat-fee subscription
+(Max/Pro), the dollar figure is framed as an API-equivalent usage-budget proxy, not billed
+money (set `claudevisual.advisor.plan`).
+
+## Live in the UI
+
+- **Context, per-session tokens, and burn rate** — the status bar and each session's
+  collapsed sidebar row show live context %, token count, cost, and tokens/minute, fed by
+  incremental updates off the JSONL transcript — no polling, no manual refresh.
+- **Token economics** — a stacked bar breaks down tokens by agent, with a separate rollup by
+  model and a cache-savings bar, so you can see at a glance where the spend actually went.
+- **Orchestration, agent by agent** — the sidebar's agent tree shows the main session and
+  every sub-agent nested by depth: type, status (running/done), model, live call count or
+  elapsed duration, spawn reason, and token spend. Expanding a row drills into that agent's
+  actual tool calls and the files it touched — not just an aggregate number.
+- **Advisor tips as copyable prompts** — every Advisor recommendation can be copied in one
+  click, pre-formatted as a prompt ready to paste straight into a Claude Code chat, so you can
+  hand the optimization back to Claude Code to act on.
+- **Per-session activity history** — a timeline of what happened during the session, alongside
+  the files-touched panel, so past activity stays reviewable after the fact.
 
 ## Development
 
@@ -112,7 +160,7 @@ Claude Code session.
 
 ## Project structure
 
-```
+```text
 src/
 ├── core/               # JSONL tailing, transcript parsing, session state reduction/store
 ├── hooks/              # Opt-in hooks + statusline wrap; safe settings.json read-modify-write
@@ -135,3 +183,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md).
 ## License
 
 [MIT](LICENSE)
+
+## Author
+
+Dinh Viet Phu — [@vietphu](https://github.com/vietphu)
